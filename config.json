@@ -5,11 +5,20 @@
         "key" : "key.pem",
         "cert" : "cert.pem"
     },
-	"pool" : {
-		"host" : "na.luckpool.net",
-		"port" : 3958,
-        "ssl" : true
- 	},
+    "pools": [
+        { "name": "luckpool NA", "host": "na.luckpool.net", "port": 3958, "ssl": true },
+        { "name": "verus.io", "host": "pool.verus.io", "port": 9998, "ssl": false }
+    ],
+
+    "failover": {
+        "enabled": true,
+        "connectFailures": 2,
+        "connectTimeoutSec": 15,
+        "submitTimeoutSec": 60,
+        "probeEverySec": 60,
+        "failback": true,
+        "failbackAfterSec": 300
+    },
     "wallet": false,
     "password": false,
 

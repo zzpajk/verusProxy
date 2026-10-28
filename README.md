@@ -33,11 +33,12 @@ If needed, generate self sign certificate to use with proxy stratum port
 
 ### Pool Connection
 
-    "pool" : {
-      "host" : "na.luckpool.net",
-      "port" : 3958,
-      "ssl"  :  true
-    }
+    "pools": [
+        { "name": "luckpool NA", "host": "na.luckpool.net", "port": 3958, "ssl": true },
+        { "name": "verus.io",    "host": "pool.verus.io",   "port": 9998, "ssl": false }
+    ]
+
+Pools are tried in priority order; see *Pool failover* below. A single `"pool": {...}` entry still works.
 
 #### Miner Authorization
 By default, authorization from miner will be used to create pool connections for each unique miner address.  
@@ -116,8 +117,51 @@ Options (environment variables): `WORKER=phone01` (otherwise taken from ccminer'
 | `ccminerApi`, `ccminerApiPort`, `ccminerPollSec` | `true`, `4068`, `30` | |
 | `ccminerHosts` | `[]` | extra ccminer APIs to poll |
 
+# Pool failover
+
+List several pools in priority order; the proxy mines on one and moves every device to the next if it stops answering. Devices stay connected to the proxy the whole time — they just get a new extranonce and job (this is why miners must support extranonce subscription, which ccminer does).
+
+```
+"pools": [
+    { "name": "luckpool NA", "host": "na.luckpool.net", "port": 3958, "ssl": true },
+    { "name": "verus.io",    "host": "pool.verus.io",   "port": 9998, "ssl": false }
+],
+"failover": {
+    "enabled": true,
+    "connectFailures": 2,
+    "connectTimeoutSec": 15,
+    "submitTimeoutSec": 60,
+    "probeEverySec": 60,
+    "failback": true,
+    "failbackAfterSec": 300
+}
+```
+
+(The old single `"pool": {...}` entry still works and means a list of one.)
+
+**When does it switch?** Only when the pool stops talking to the proxy:
+
+- `connectFailures` connection attempts in a row fail (refused, TLS error, or no answer to subscribe within `connectTimeoutSec`), or
+- shares were submitted and *nothing* came back for `submitTimeoutSec`.
+
+TCP keepalive is enabled on pool connections so dead links are noticed even when nothing is being submitted.
+Time since the last block or job is **never** a reason to switch — Verus blocks have no upper time limit. Rejected shares don't trigger a switch either (the pool is up; that's a config or miner problem) — they show in the dashboard.
+
+**Failback.** The proxy probes the standby pools every `probeEverySec` (connect, subscribe and log in with a `.proxyprobe` worker, then hang up). When the preferred pool has passed probes continuously for `failbackAfterSec`, it moves back.
+
+**Dashboard control.** The Pools panel shows each pool's status, ping, pool-side hashrate, accepted/rejected shares, time since last job, last problem, and a log of switches. With a login configured you can:
+
+- **Switch here** — moves all devices to that pool and makes it the *preferred* pool (failover still protects you; failback returns to it instead of #1).
+- **Auto failover** on/off.
+- **Use priority order** — clears the preferred pool so #1 is preferred again.
+
+Pool control only works when `dashboard.auth` is set (it moves all your hashrate, so it must not be open to the whole LAN), and it can only switch between pools listed in `config.json` — never to an address typed into the page. Requests also need a custom header and must come from the dashboard's own origin, so another website open in your browser can't trigger a switch using your saved login. The preferred pool and the on/off setting are kept in `data/pools.json` across restarts (the saved preferred pool is ignored if you edit the pool list).
+
+**The proxy itself is still a single point of failure.** Give ccminer on each device a second pool that goes straight to a real pool, so devices keep mining if the proxy machine is down.
+
 ### API
 
-`GET /api/stats`, `GET /api/history?range=1h|6h|24h|7d|30d&metric=rep|eff`, `POST /api/report`, `POST /api/forget {"worker": "..."}`.
+`GET /api/stats`, `GET /api/history?range=1h|6h|24h|7d|30d&metric=rep|eff`, `GET /api/pools`, `POST /api/report`, `POST /api/forget {"worker": "..."}`.
+Pool control (needs `dashboard.auth` and header `X-VP-Control: 1`): `POST /api/pools/switch {"index": 1}`, `POST /api/pools/auto {"enabled": true}`, `POST /api/pools/reset-preferred`.
 
 The dashboard is meant for your LAN. If you expose it to the internet, set `auth` and put it behind HTTPS.

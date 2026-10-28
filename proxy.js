@@ -3,10 +3,12 @@ const totalCPUs = require("os").cpus().length;
 const minerListener = require('./lib/miner_listener.js');
 const { FleetStats } = require('./lib/stats_master.js');
 const dashboard = require('./lib/dashboard_server.js');
+const { PoolManager } = require('./lib/pool_manager.js');
+const poolSelect = require('./lib/pool_select.js');
 
 const config = require('./config.json');
 
-config.version = "0.2.0";
+config.version = "0.3.0";
 
 // TODO, stratumProxy/poolConnection engine (50%)
 //       api/stats engine (dashboard: lib/stats_master.js)
@@ -17,9 +19,22 @@ if (cluster.isMaster) {
 
     // fleet stats + web dashboard live in the master, fed by every worker thread
     const stats = new FleetStats(config);
-    dashboard.start(config, stats);
+
+    // pool failover / manual switching: the master decides, every worker follows
+    const pools = new PoolManager(config, function broadcast(msg) {
+        for (const id in cluster.workers) {
+            try { cluster.workers[id].send(msg); } catch (e) {}
+        }
+    }, function probeLogin() {
+        for (const w of stats.workers.values()) if (w.address) return w.address;
+        return null;
+    });
+    stats.poolNameFn = () => pools.activeConfig().name;
+
+    dashboard.start(config, stats, pools);
     let shutdown = function() {
         stats.save();
+        pools.save();
         process.exit(0);
     };
     process.on('SIGINT', shutdown);
@@ -27,12 +42,18 @@ if (cluster.isMaster) {
     //console.log(`Master ${process.pid} is running`);
 
     let my_fork = function() {
-        let worker = cluster.fork();
+        // new workers start on whichever pool is active right now
+        let worker = cluster.fork({ VP_ACTIVE_POOL: String(pools.active) });
 
         // example fork inter-process communications
         worker.on('message', function(msg){
             if (msg && msg.type === 'vp-stats') {
                 stats.onWorkerMessage(msg);
+                pools.onStats(msg);
+                return;
+            }
+            if (msg && msg.type === 'vp-pool-event') {
+                pools.onWorkerEvent(msg);
                 return;
             }
             console.log('from worker:', msg);
@@ -59,6 +80,7 @@ if (cluster.isMaster) {
 
     cluster.on("exit", (worker, code, signal) => {
         stats.onWorkerExit(worker.process.pid);
+        pools.onWorkerExit(worker.process.pid);
         console.log(`worker ${worker.process.pid} died, forking again`);
         my_fork();
     });
@@ -69,6 +91,7 @@ if (cluster.isMaster) {
 
     // example fork inter-process communications
     process.on('message', function(msg) {
+        if (poolSelect.handleMasterMessage(msg)) return;
         console.log('from master:', msg);
     });
     //process.send({chat: "Hello master from worker!"});

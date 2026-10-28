@@ -102,6 +102,24 @@ header .meta { color: var(--ink-2); font-size: 13px; display: flex; gap: 14px; f
 .tip .row span { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
 
 .table-card { margin-top: 12px; overflow: hidden; }
+.pools-card { margin-bottom: 12px; overflow: hidden; }
+.pools-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 16px 8px; }
+.pools-head h2 { font-size: 14px; font-weight: 600; margin: 0; }
+.pools-head .hint { color: var(--muted); font-size: 12.5px; }
+.toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); cursor: pointer; user-select: none; }
+.toggle button { width: 34px; height: 20px; border-radius: 999px; border: 0; padding: 0; position: relative; cursor: pointer;
+  background: var(--axis); transition: background .15s; }
+.toggle button::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .15s; }
+.toggle button[aria-checked="true"] { background: var(--good); }
+.toggle button[aria-checked="true"]::after { transform: translateX(14px); }
+.toggle button:disabled { opacity: .5; cursor: not-allowed; }
+.pools-card td.err { color: var(--muted); max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+.pill { font-size: 11.5px; padding: 1px 7px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--ring); color: var(--ink-2); margin-left: 6px; }
+.btn.small { height: 26px; padding: 0 9px; font-size: 12.5px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.events { padding: 8px 16px 12px; color: var(--ink-2); font-size: 12.5px; display: grid; gap: 2px; }
+.events .t { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 8px; }
+.events .by { color: var(--muted); margin-right: 6px; }
 .table-scroll { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 13px; }
 th, td { padding: 7px 10px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--grid); }
@@ -150,6 +168,21 @@ input[type=checkbox] { accent-color: var(--s1); width: 15px; height: 15px; margi
     <div class="card kpi"><div class="label">Average per device</div><div class="value" id="kAvg">—</div><div class="sub" id="kAvgSub">—</div></div>
     <div class="card kpi"><div class="label">Shares</div><div class="value" id="kShares">—</div><div class="sub" id="kSharesSub">—</div></div>
     <div class="card kpi"><div class="label">CPU temperature</div><div class="value" id="kTemp">—</div><div class="sub" id="kTempSub">—</div></div>
+  </section>
+
+  <section class="card pools-card" id="poolsCard" hidden>
+    <div class="pools-head">
+      <h2>Pools</h2>
+      <span class="hint" id="poolsHint"></span>
+      <span class="spacer"></span>
+      <span class="toggle"><button id="autoToggle" role="switch" aria-checked="false" aria-label="Auto failover"></button><label for="autoToggle">Auto failover</label></span>
+      <button class="btn small" id="resetPreferred" hidden>Use priority order</button>
+    </div>
+    <div class="table-scroll"><table>
+      <thead><tr><th class="nosort num">#</th><th class="nosort">Pool</th><th class="nosort">Status</th><th class="nosort num">Ping</th><th class="nosort num">Pool-side</th><th class="nosort num">Accepted</th><th class="nosort num">Rejected</th><th class="nosort num" title="Time since the pool's last new job. Long gaps are normal - Verus blocks have no time limit - and never cause a switch.">Last job</th><th class="nosort">Last problem</th><th class="nosort"></th></tr></thead>
+      <tbody id="poolsBody"></tbody>
+    </table></div>
+    <div class="events" id="poolEvents"></div>
   </section>
 
   <div class="filters" role="group" aria-label="Filters">
@@ -331,7 +364,7 @@ function renderKpis() {
   const hot = s.workers.filter(w => w.status !== 'offline' && w.cpuTemp !== null).sort((a, b) => b.cpuTemp - a.cpuTemp)[0];
   $('kTempSub').textContent = hot ? 'Hottest ' + hot.name + ' at ' + hot.cpuTemp.toFixed(0) + ' °C' : 'No temperature data yet';
 
-  $('poolInfo').textContent = s.pool ? 'Pool ' + s.pool + ' · proxy up ' + fmtDur((now - s.startedAt) / 1000) : '';
+  $('poolInfo').textContent = s.pool ? 'Mining on ' + s.pool + ' · proxy up ' + fmtDur((now - s.startedAt) / 1000) : '';
 }
 
 // ---------- table ----------
@@ -597,6 +630,93 @@ function renderChart() {
   hit.addEventListener('pointerleave', () => { tip.style.display = 'none'; cross.setAttribute('visibility', 'hidden'); dots.forEach(d => d.setAttribute('visibility', 'hidden')); });
 }
 
+// ---------- pools ----------
+function renderPools() {
+  const ps = state.pools;
+  if (!ps || !ps.pools || ps.pools.length === 0) { $('poolsCard').hidden = true; return; }
+  $('poolsCard').hidden = false;
+  const now = state.stats ? state.stats.time : Date.now();
+  const control = ps.controlEnabled;
+  const at = $('autoToggle');
+  at.setAttribute('aria-checked', String(ps.auto));
+  at.disabled = !control;
+  at.title = control ? '' : 'Set dashboard.auth in config.json to enable pool control';
+  const pref = ps.pools[ps.preferred];
+  $('resetPreferred').hidden = !control || ps.pinned === null || ps.pinned === 0;
+  $('poolsHint').textContent = !control
+    ? 'Read-only: set dashboard.auth in config.json to enable switching.'
+    : ps.auto
+      ? (ps.failback ? 'Fails over when a pool stops answering; returns to ' + pref.name + ' after it has been healthy ' + Math.round(ps.failbackAfterSec / 60) + ' min.' : 'Fails over when a pool stops answering; no automatic return.')
+      : 'Auto failover is off: the proxy stays on the active pool even if it goes down.';
+  const tb = $('poolsBody'); tb.textContent = '';
+  for (const p of ps.pools) {
+    const tr = document.createElement('tr');
+    const isActive = p.index === ps.active;
+    cell(tr, String(p.index + 1), 'num');
+    const nameTd = cell(tr, p.name, 'name');
+    if (p.index === ps.preferred) { const b = document.createElement('span'); b.className = 'pill'; b.textContent = 'preferred'; nameTd.appendChild(b); }
+    const hostLine = document.createElement('div'); hostLine.className = 'dim'; hostLine.style.fontWeight = '400'; hostLine.style.fontSize = '12px';
+    hostLine.textContent = p.host + ':' + p.port + (p.ssl ? ' · TLS' : '');
+    nameTd.appendChild(hostLine);
+    let st;
+    if (isActive && p.status === 'down') st = ['--critical', 'Active · not answering'];
+    else if (isActive) st = ['--good', 'Active · ' + (p.connections || 0) + ' connection' + (p.connections === 1 ? '' : 's')];
+    else if (p.status === 'up') st = ['--good', 'Standby · reachable'];
+    else if (p.status === 'down') st = ['--critical', 'Down'];
+    else st = ['--muted', 'Checking…'];
+    cell(tr, dot(st[0], st[1], 'status'));
+    cell(tr, p.pingMs !== null && p.pingMs !== undefined ? p.pingMs + ' ms' : null, 'num');
+    cell(tr, isActive || p.hashrate > 0 ? fmtH(p.hashrate) : null, 'num');
+    cell(tr, fmtInt(p.accepted), 'num');
+    cell(tr, fmtInt(p.rejected), 'num');
+    cell(tr, p.lastJob ? fmtAgo(p.lastJob, now) : null, 'num');
+    const errTd = cell(tr, p.lastError ? p.lastError + (p.lastErrorAt ? ' · ' + fmtAgo(p.lastErrorAt, now) : '') : '', 'err');
+    if (p.lastError) errTd.title = p.lastError;
+    const actTd = cell(tr, '');
+    if (!isActive) {
+      const b = document.createElement('button'); b.className = 'btn small'; b.textContent = 'Switch here';
+      b.disabled = !control;
+      if (!control) b.title = 'Set dashboard.auth in config.json to enable pool control';
+      b.addEventListener('click', () => {
+        if (!confirm('Move all devices to ' + p.name + '?' + (p.status === 'down' ? '\n\nThis pool currently looks DOWN.' : '') + (ps.auto ? '\n\nIt becomes the preferred pool; failover still protects you if it stops answering.' : ''))) return;
+        poolAction('switch', { index: p.index });
+      });
+      actTd.appendChild(b);
+    }
+    tb.appendChild(tr);
+  }
+  const ev = $('poolEvents'); ev.textContent = '';
+  for (const e of (ps.events || []).slice(0, 6)) {
+    const row = document.createElement('div');
+    const t = document.createElement('span'); t.className = 't';
+    t.textContent = new Date(e.t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const by = document.createElement('span'); by.className = 'by'; by.textContent = e.by === 'manual' ? 'Manual' : e.by === 'auto' ? 'Auto' : '';
+    let text = e.reason || '';
+    if (e.type === 'switch' && ps.pools[e.from] && ps.pools[e.to]) text = ps.pools[e.from].name + ' → ' + ps.pools[e.to].name + ' · ' + e.reason;
+    row.append(t, by, document.createTextNode(text));
+    ev.appendChild(row);
+  }
+}
+async function loadPools() {
+  try { state.pools = state.demo ? Demo.pools() : await getJSON('api/pools'); } catch (e) { return; }
+  renderPools();
+}
+async function poolAction(action, body) {
+  if (state.demo) { Demo.poolAction(action, body); renderPools(); return; }
+  try {
+    const r = await fetch('api/pools/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-VP-Control': '1' }, body: JSON.stringify(body || {}) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok || j.ok === false) alert('Pool control refused: ' + (j.error || r.status));
+  } catch (e) { alert('Proxy unreachable'); }
+  setTimeout(loadPools, 400);
+}
+$('autoToggle').addEventListener('click', () => {
+  const on = $('autoToggle').getAttribute('aria-checked') !== 'true';
+  if (!on && !confirm('Turn off auto failover? The proxy will then stay on the active pool even if it goes down.')) return;
+  poolAction('auto', { enabled: on });
+});
+$('resetPreferred').addEventListener('click', () => poolAction('reset-preferred'));
+
 // ---------- data ----------
 async function getJSON(url) {
   const r = await fetch(url, { cache: 'no-store' });
@@ -617,6 +737,7 @@ async function loadStats() {
   fillSelect($('fMake'), ws.map(w => w.make || 'Unknown'), 'All makes');
   fillSelect($('fOs'), ws.map(w => osFamily(w.os)), 'All systems');
   renderKpis(); renderTable();
+  loadPools();
 }
 async function loadHistory() {
   $('chart').classList.add('loading');
@@ -719,7 +840,7 @@ const Demo = (() => {
     });
     const on = workers.filter(w => w.status !== 'offline'), temps = on.map(w => w.cpuTemp).filter(Boolean);
     return {
-      time: now, startedAt: now0 - 5.2 * 86400e3, pool: 'na.luckpool.net:3958', hashrateWindowSec: 600, poolConnections: [],
+      time: now, startedAt: now0 - 5.2 * 86400e3, pool: demoPools.pools[demoPools.active].name, hashrateWindowSec: 600, poolConnections: [],
       totals: {
         effHashrate: workers.reduce((a, w) => a + w.effHashrate, 0), repHashrate: workers.reduce((a, w) => a + (w.repHashrate || 0), 0),
         online: on.length, offline: workers.length - on.length, stale: workers.filter(w => w.status === 'stale').length, devices: workers.length,
@@ -748,7 +869,34 @@ const Demo = (() => {
     const total = t.map((_, i) => devs.reduce((a, d) => a + (workers[d.name][i] || 0), 0));
     return { metric, t, total, workers };
   }
-  return { stats, history };
+  const demoPools = {
+    active: 0, preferred: 0, pinned: null, auto: true, failback: true, failbackAfterSec: 300, controlEnabled: true,
+    pools: [
+      { index: 0, name: 'luckpool NA', host: 'na.luckpool.net', port: 3958, ssl: true, status: 'up', pingMs: 112, accepted: 251344, rejected: 98, lastJob: now0 - 41e3, lastError: 'connection closed by pool', lastErrorAt: now0 - 2.1 * 86400e3, connections: 1 },
+      { index: 1, name: 'verus.io', host: 'pool.verus.io', port: 9998, ssl: false, status: 'up', pingMs: 87, accepted: 29647, rejected: 13, lastJob: null, lastError: null, connections: 0 }
+    ],
+    events: [
+      { t: now0 - 2.1 * 86400e3 + 330e3, type: 'switch', from: 1, to: 0, by: 'auto', reason: 'failback: luckpool NA healthy for 5 min' },
+      { t: now0 - 2.1 * 86400e3, type: 'switch', from: 0, to: 1, by: 'auto', reason: 'luckpool NA: no reply to shares for 60 s' }
+    ]
+  };
+  function pools() {
+    const s = stats(), act = demoPools.pools[demoPools.active];
+    demoPools.pools.forEach(p => { p.hashrate = p.index === demoPools.active ? s.totals.effHashrate : 0; p.connections = p.index === demoPools.active ? 1 : 0; });
+    return demoPools;
+  }
+  function poolAction(action, body) {
+    const ev = { t: Date.now(), by: 'manual' };
+    if (action === 'switch' && body.index !== demoPools.active) {
+      Object.assign(ev, { type: 'switch', from: demoPools.active, to: body.index, reason: 'switched to ' + demoPools.pools[body.index].name + ' from the dashboard' });
+      demoPools.active = demoPools.preferred = demoPools.pinned = body.index;
+    } else if (action === 'auto') { demoPools.auto = body.enabled; Object.assign(ev, { type: 'setting', reason: 'auto failover turned ' + (body.enabled ? 'on' : 'off') }); }
+    else if (action === 'reset-preferred') { demoPools.pinned = null; demoPools.preferred = 0; Object.assign(ev, { type: 'setting', reason: 'preferred pool reset to priority order (luckpool NA)' }); }
+    else return;
+    demoPools.events.unshift(ev);
+    state.pools = pools();
+  }
+  return { stats, history, pools, poolAction };
 })();
 
 // ---------- boot ----------
