@@ -359,8 +359,8 @@ function renderKpis() {
   $('kHashLabel').textContent = state.metric === 'rep' && rep > 0 ? 'Fleet hashrate · device-reported' : 'Fleet hashrate · pool-side';
   $('kHash').textContent = fmtH(main);
   $('kHashSub').textContent = state.metric === 'rep' && rep > 0
-    ? 'Pool-side ' + fmtH(eff) + ' over ' + Math.round(s.hashrateWindowSec / 60) + ' min'
-    : (rep > 0 ? 'Device-reported ' + fmtH(rep) : 'Averaged over ' + Math.round(s.hashrateWindowSec / 60) + ' min of shares');
+    ? 'Pool-side ' + fmtH(eff) + ' · ' + shareBasis(t.effShares, t.effSpanSec, s.hashrateWindowSec)
+    : (rep > 0 ? 'Device-reported ' + fmtH(rep) : shareBasis(t.effShares, t.effSpanSec, s.hashrateWindowSec));
   $('kOnline').textContent = t.online + ' / ' + t.devices;
   $('kOnlineSub').textContent = [t.offline ? t.offline + ' offline' : 'none offline', t.stale ? t.stale + ' without shares' : ''].filter(Boolean).join(' · ');
   $('kAvg').textContent = t.online ? fmtH(main / t.online) : '—';
@@ -386,6 +386,20 @@ function dot(color, label, cls) {
   const s = document.createElement('span'); s.className = cls;
   const i = document.createElement('i'); i.style.background = css(color); s.appendChild(i);
   s.appendChild(document.createTextNode(label)); return s;
+}
+// pool-side numbers come from random share finds: fewer shares = less certain
+function shareBasis(n, spanSec, fallbackSec) {
+  if (n === undefined || n === null) return 'over ' + Math.round(fallbackSec / 60) + ' min of shares';
+  if (!n) return 'no shares yet';
+  return n.toLocaleString() + ' share' + (n === 1 ? '' : 's') + ' in ' + Math.max(1, Math.round(spanSec / 60)) + ' min · ±' + Math.round(100 / Math.sqrt(n)) + '%';
+}
+function poolSideCell(tr, w) {
+  const n = w.effShares;
+  if (w.status === 'offline' && !w.effHashrate) return cell(tr, null, 'num');
+  const td = cell(tr, (n !== undefined && n < 10 && w.effHashrate ? '~' : '') + fmtH(w.effHashrate), 'num');
+  if (n !== undefined && n < 10) td.style.color = css('--muted');
+  td.title = 'Pool-side: ' + shareBasis(n, w.effSpanSec, 600) + (n !== undefined && n < 10 ? '. Too few shares for an accurate per-device number; the device-reported figure is the reliable one.' : '');
+  return td;
 }
 function renderHead() {
   const tr = $('thead'); tr.textContent = '';
@@ -461,8 +475,8 @@ function renderTable() {
           cell(tr, parts.length ? parts.join(' · ') : null, 'num'); break;
         }
         case 'load': cell(tr, w.load !== null && w.load !== undefined ? w.load.toFixed(2) : null, 'num'); break;
-        case 'hash': cell(tr, fmtH(hashOf(w)), 'num'); break;
-        case 'other': cell(tr, fmtH(state.metric === 'rep' ? w.effHashrate : w.repHashrate), 'num'); break;
+        case 'hash': state.metric === 'rep' ? cell(tr, fmtH(w.repHashrate), 'num') : poolSideCell(tr, w); break;
+        case 'other': state.metric === 'rep' ? poolSideCell(tr, w) : cell(tr, fmtH(w.repHashrate), 'num'); break;
         case 'perCore': cell(tr, fmtH(c.val(w)), 'num'); break;
         case 'threads': cell(tr, w.threads ? w.threads.length : null, 'num'); break;
         case 'shares': cell(tr, fmtInt(w.accepted), 'num'); break;
@@ -881,6 +895,7 @@ const Demo = (() => {
         name: d.name, status: d.status, address: 'RDemoWalletAddress', ip: d.ip, connections: on ? 1 : 0, software: 'ccminer/3.8.3', xnsub: true,
         connectedSince: on ? d.since : null, lastShare: d.status === 'online' ? now - rnd() * 40e3 : now - 9 * 60e3,
         lastSeen: now, firstSeen: d.born, effHashrate: rep ? rep * (0.85 + rnd() * 0.3) : 0, repHashrate: rep,
+        effShares: rep ? Math.floor(4 + d.base / 1e6 * 2.5) : 0, effSpanSec: 3600,
         accepted: d.acc, rejected: d.rej, minerAccepted: d.acc, minerRejected: d.rej, minerUptime: on ? (now - d.since) / 1000 : null,
         minerSource: 'api', threads: on ? Array(d.cores).fill(0) : null, cpuFreq: on ? 1800 + Math.floor(rnd() * 900) : null, ping: on ? 20 + Math.floor(rnd() * 40) : null,
         cpuTemp: on ? Math.round((d.temp + rnd() * 2) * 10) / 10 : null, make: d.make, model: d.model, soc: d.soc, os: d.os, kernel: d.kernel, arch: d.arch,
@@ -892,7 +907,7 @@ const Demo = (() => {
     return {
       time: now, startedAt: now0 - 5.2 * 86400e3, pool: demoPools.pools[demoPools.active].name, hashrateWindowSec: 600, poolConnections: [],
       totals: {
-        effHashrate: workers.reduce((a, w) => a + w.effHashrate, 0), repHashrate: workers.reduce((a, w) => a + (w.repHashrate || 0), 0),
+        effHashrate: workers.reduce((a, w) => a + w.effHashrate, 0), effShares: 312, effSpanSec: 1500, repHashrate: workers.reduce((a, w) => a + (w.repHashrate || 0), 0),
         online: on.length, offline: workers.length - on.length, stale: workers.filter(w => w.status === 'stale').length, devices: workers.length,
         accepted: workers.reduce((a, w) => a + w.accepted, 0), rejected: workers.reduce((a, w) => a + w.rejected, 0),
         avgTemp: temps.reduce((a, b) => a + b, 0) / temps.length, maxTemp: Math.max(...temps)
