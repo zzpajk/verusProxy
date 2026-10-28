@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Verus Fleet</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Cpath d=%22M1 12l4-5 3 3 6-8%22 fill=%22none%22 stroke=%22%232a78d6%22 stroke-width=%222%22/%3E%3C/svg%3E">
+<script>try { var th = JSON.parse(localStorage.getItem('vp.theme')); if (th === 'light' || th === 'dark') document.documentElement.setAttribute('data-theme', th); } catch (e) {}</script>
 <style>
 :root {
   color-scheme: light;
@@ -101,7 +102,8 @@ header .meta { color: var(--ink-2); font-size: 13px; display: flex; gap: 14px; f
 .tip .row b { font-weight: 650; font-variant-numeric: tabular-nums; min-width: 72px; }
 .tip .row span { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
 
-.table-card { margin-top: 12px; overflow: hidden; }
+.table-card { margin-top: 12px; }
+.table-card .table-scroll { border-radius: 12px 12px 0 0; }
 .pools-card { margin-bottom: 12px; overflow: hidden; }
 .pools-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 16px 8px; }
 .pools-head h2 { font-size: 14px; font-weight: 600; margin: 0; }
@@ -136,12 +138,14 @@ td .dim { color: var(--muted); }
 .status i, .temp i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
 .temp { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
 .forget { font: inherit; font-size: 12px; color: var(--ink-2); background: none; border: 0; cursor: pointer; text-decoration: underline; padding: 0; }
-.table-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 10px 12px; color: var(--muted); font-size: 12.5px; }
+.table-foot { display: flex; align-items: center; gap: 12px; padding: 10px 12px; color: var(--muted); font-size: 12.5px; }
+.table-foot > span { flex: 1; min-width: 0; }
+.table-foot .colmenu { flex: none; }
 input[type=checkbox] { accent-color: var(--s1); width: 15px; height: 15px; margin: 0; vertical-align: middle; cursor: pointer; }
 
 .colmenu { position: relative; }
 .colmenu .panel {
-  position: absolute; right: 0; top: 36px; z-index: 10; background: var(--surface); border-radius: 10px;
+  position: absolute; right: 0; bottom: 38px; z-index: 10; background: var(--surface); border-radius: 10px;
   box-shadow: 0 0 0 1px var(--ring), 0 8px 24px rgba(0,0,0,.14); padding: 8px; display: none; width: 210px;
   max-height: 360px; overflow: auto;
 }
@@ -159,6 +163,10 @@ input[type=checkbox] { accent-color: var(--s1); width: 15px; height: 15px; margi
       <span id="poolInfo">—</span>
       <span id="liveInfo"><span class="live-dot"></span>connecting…</span>
       <span id="demoBadge" class="badge" hidden>Demo data</span>
+    </div>
+    <span class="spacer"></span>
+    <div class="seg" id="themeSeg" role="group" aria-label="Theme">
+      <button data-v="auto" title="Follow the system setting">Auto</button><button data-v="light">Light</button><button data-v="dark">Dark</button>
     </div>
   </header>
 
@@ -269,6 +277,7 @@ const state = {
   sort: store.get('sort', { key: 'hash', dir: -1 }),
   plotted: store.get('plotted', []),
   showTotals: store.get('showTotals', true),
+  theme: store.get('theme', 'auto'),
   hiddenCols: store.get('hiddenCols', ['address','kernel','arch','ram','load','ping','freq','firstSeen','minerShares','threads']),
   stats: null, history: null, demo: false, lastOk: 0
 };
@@ -536,11 +545,26 @@ function niceTicks(max, count) {
   if (ticks[ticks.length - 1] < max) ticks.push(ticks[ticks.length - 1] + step);
   return ticks;
 }
-function fmtTime(t, span) {
+const RANGE_MS = { '1h': 3600e3, '6h': 6 * 3600e3, '24h': 24 * 3600e3, '7d': 7 * 86400e3, '30d': 30 * 86400e3 };
+function fmtTime(t, step) {
   const d = new Date(t);
-  if (span <= 26 * 3600e3) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (step < 86400e3) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
+// time ticks on round local times: every 10 min, hour, 6 h, midnight, ...
+function timeTicks(t0, t1, maxTicks) {
+  const steps = [5, 10, 15, 30, 60, 120, 180, 360, 720, 1440, 2880, 4320, 10080].map(m => m * 60e3);
+  const step = steps.find(s => (t1 - t0) / s <= maxTicks) || steps[steps.length - 1];
+  const out = [];
+  const d = new Date(t0);
+  if (step >= 86400e3) d.setHours(0, 0, 0, 0);
+  else { d.setSeconds(0, 0); const mins = step / 60e3; if (mins >= 60) { d.setMinutes(0); d.setHours(d.getHours() - d.getHours() % (mins / 60)); } else d.setMinutes(d.getMinutes() - d.getMinutes() % mins); }
+  let t = d.getTime();
+  while (t < t0) t = step >= 86400e3 ? addDays(t, step / 86400e3) : t + step;
+  for (; t <= t1; t = step >= 86400e3 ? addDays(t, step / 86400e3) : t + step) out.push(t);
+  return { ticks: out, step };
+}
+function addDays(t, n) { const d = new Date(t); d.setDate(d.getDate() + n); return d.getTime(); }
 const NS = 'http://www.w3.org/2000/svg';
 function el(name, attrs, parent) { const e = document.createElementNS(NS, name); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
 
@@ -554,17 +578,27 @@ function renderChart() {
     const sp = document.createElement('span'); const i = document.createElement('i'); i.style.background = s.color; i.style.height = s.width > 2 ? '3px' : '2px';
     sp.appendChild(i); sp.appendChild(document.createTextNode(s.name)); legend.appendChild(sp);
   }
-  $('chartTitle').textContent = (state.history && state.history.metric === 'rep' ? 'Device-reported' : 'Pool-side') + ' hashrate · last ' + state.range;
   const h = state.history;
-  if (!h || h.t.length < 2) {
+  // the x axis always spans the whole selected range, ending now
+  const t1 = h && h.now ? h.now : Date.now();
+  const t0 = h && h.from ? h.from : t1 - RANGE_MS[state.range];
+  const span = t1 - t0;
+  let title = (h && h.metric === 'rep' ? 'Device-reported' : 'Pool-side') + ' hashrate · last ' + state.range;
+  if (h && h.since && h.since > t0 + span * 0.02) {
+    title += ' · history since ' + new Date(h.since).toLocaleString([], span > 86400e3 ? { month: 'short', day: 'numeric' } : { hour: '2-digit', minute: '2-digit' });
+  }
+  $('chartTitle').textContent = title;
+  if (!h || h.t.length < 1) {
     const e = document.createElement('div'); e.className = 'empty';
     e.textContent = 'Collecting history — a point is recorded every minute.'; box.appendChild(e); return;
   }
   const W = box.clientWidth, H = box.clientHeight;
   const m = { l: 70, r: 12, t: 10, b: 26 };
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
-  const t0 = h.t[0], t1 = h.t[h.t.length - 1], span = t1 - t0 || 1;
-  let max = 0; for (const s of series) for (const v of s.values) if (v > max) max = v;
+  // points further apart than this are separate stretches (proxy was down / no data)
+  let gap = (h.step || 60e3) * 2.5;
+  if (!h.step && h.t.length > 2) { const d = h.t.slice(1).map((t, i) => t - h.t[i]).sort((a, b) => a - b); gap = d[Math.floor(d.length / 2)] * 2.5; }
+  let max = 0; for (const s of series) s.values.forEach((v, i) => { if (h.t[i] >= t0 && v > max) max = v; });
   const ticks = niceTicks(max, 4), ymax = ticks[ticks.length - 1] || 1;
   const x = (t) => m.l + (t - t0) / span * iw;
   const y = (v) => m.t + ih - v / ymax * ih;
@@ -575,23 +609,25 @@ function renderChart() {
     const tx = el('text', { x: m.l - 8, y: y(tv) + 4, 'text-anchor': 'end', fill: css('--muted'), 'font-size': 11, 'font-variant-numeric': 'tabular-nums' }, g);
     tx.textContent = fmtH(tv, tv === 0 ? 0 : undefined).replace(/\.0+ /, ' ');
   }
-  const nx = Math.max(1, Math.min(7, Math.floor(iw / 110), Math.floor(span / 60000)));
-  let lastLabel = '';
-  for (let i = 0; i <= nx; i++) {
-    const t = t0 + span * i / nx;
-    const label = fmtTime(t, span);
-    if (label === lastLabel) continue;
-    lastLabel = label;
-    const tx = el('text', { x: x(t), y: H - 6, 'text-anchor': i === 0 ? 'start' : i === nx ? 'end' : 'middle', fill: css('--muted'), 'font-size': 11 }, g);
-    tx.textContent = label;
+  const tt = timeTicks(t0, t1, Math.max(2, Math.min(8, Math.floor(iw / 90))));
+  for (const t of tt.ticks) {
+    const px = x(t);
+    el('line', { x1: px, x2: px, y1: m.t + ih, y2: m.t + ih + 4, stroke: css('--axis'), 'stroke-width': 1 }, g);
+    const anchor = px - m.l < 30 ? 'start' : W - m.r - px < 30 ? 'end' : 'middle';
+    const tx = el('text', { x: px, y: H - 6, 'text-anchor': anchor, fill: css('--muted'), 'font-size': 11 }, g);
+    tx.textContent = fmtTime(t, tt.step);
   }
   // lines, drawn back to front so "All devices" stays on top
   for (const s of series.slice().reverse()) {
-    let d = '', pen = false;
+    let d = '', pen = false, segLen = 0, prevT = null;
+    const endSeg = () => { if (segLen === 1) d += 'l0.01,0'; segLen = 0; }; // lone point -> round dot
     s.values.forEach((v, i) => {
-      if (v === null || v === undefined) { pen = false; return; }
-      d += (pen ? 'L' : 'M') + x(h.t[i]).toFixed(1) + ',' + y(v).toFixed(1); pen = true;
+      const t = h.t[i];
+      if (v === null || v === undefined || t < t0) { if (pen) endSeg(); pen = false; return; }
+      if (pen && prevT !== null && t - prevT > gap) { endSeg(); pen = false; }
+      d += (pen ? 'L' : 'M') + x(t).toFixed(1) + ',' + y(v).toFixed(1); pen = true; segLen++; prevT = t;
     });
+    if (pen) endSeg();
     if (d) el('path', { d, fill: 'none', stroke: s.color, 'stroke-width': s.width, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, svg);
   }
   // crosshair + tooltip
@@ -602,16 +638,23 @@ function renderChart() {
   const move = (ev) => {
     const r = svg.getBoundingClientRect();
     const px = ev.clientX - r.left;
-    const tt = t0 + (px - m.l) / iw * span;
+    const pt = t0 + (px - m.l) / iw * span;
     let i = 0, best = Infinity;
-    h.t.forEach((t, k) => { const dd = Math.abs(t - tt); if (dd < best) { best = dd; i = k; } });
-    const cx = x(h.t[i]);
+    h.t.forEach((t, k) => { const dd = Math.abs(t - pt); if (dd < best) { best = dd; i = k; } });
+    const noData = best > gap;
+    const cx = noData ? px : x(h.t[i]);
     cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.setAttribute('visibility', 'visible');
     tip.textContent = '';
     const when = document.createElement('div'); when.className = 'when';
-    when.textContent = new Date(h.t[i]).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    when.textContent = new Date(noData ? pt : h.t[i]).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     tip.appendChild(when);
-    series.forEach((s, k) => {
+    if (noData) {
+      dots.forEach(d => d.setAttribute('visibility', 'hidden'));
+      const row = document.createElement('div'); row.className = 'row';
+      const sp = document.createElement('span'); sp.style.maxWidth = 'none';
+      sp.textContent = h.since && pt < h.since ? 'Before recorded history' : 'No data (proxy not running)';
+      row.appendChild(sp); tip.appendChild(row);
+    } else series.forEach((s, k) => {
       const v = s.values[i];
       if (v === null || v === undefined) { dots[k].setAttribute('visibility', 'hidden'); }
       else { dots[k].setAttribute('cx', cx); dots[k].setAttribute('cy', y(v)); dots[k].setAttribute('visibility', 'visible'); }
@@ -778,6 +821,13 @@ function bindSeg(id, key, after) {
   });
   paint();
 }
+bindSeg('themeSeg', 'theme', () => {
+  if (state.theme === 'auto') document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', state.theme);
+  // chart, table and pool colors are read from CSS at render time
+  if (state.stats) { renderTable(); renderPools(); }
+  renderChart();
+});
 bindSeg('rangeSeg', 'range', loadHistory);
 bindSeg('metricSeg', 'metric', () => { loadHistory(); if (state.stats) { renderKpis(); renderTable(); } });
 for (const id of ['q', 'fStatus', 'fMake', 'fOs', 'fTemp']) $(id).addEventListener('input', () => { renderTable(); renderChart(); });
@@ -867,7 +917,7 @@ const Demo = (() => {
       });
     }
     const total = t.map((_, i) => devs.reduce((a, d) => a + (workers[d.name][i] || 0), 0));
-    return { metric, t, total, workers };
+    return { metric, now, from: now - sec * 1000, step, since: now - 30 * 86400e3, t, total, workers };
   }
   const demoPools = {
     active: 0, preferred: 0, pinned: null, auto: true, failback: true, failbackAfterSec: 300, controlEnabled: true,
