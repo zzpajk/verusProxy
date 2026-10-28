@@ -159,6 +159,24 @@ Pool control only works when `dashboard.auth` is set (it moves all your hashrate
 
 **The proxy itself is still a single point of failure.** Give ccminer on each device a second pool that goes straight to a real pool, so devices keep mining if the proxy machine is down.
 
+# Devices showing "Offline" / reconnecting
+
+ccminer disconnects when it receives nothing from its pool for `--timeout` seconds — 300 by default, but **60 as soon as more than one pool is configured**. During a long Verus block (no new job) a phone that rarely finds a share can go that long without hearing anything, so ccminer drops the connection and reconnects, or fails over to its backup pool.
+
+The proxy prevents this: if it hasn't sent a device anything for `minerKeepaliveSec` (default 30), it resends the current share target, which ccminer treats as "nothing changed" and keeps mining. Keep it below ccminer's timeout; `0` disables it.
+
+Statuses in the device table:
+
+| Status | Meaning |
+|---|---|
+| Online | connected to the proxy |
+| Reconnecting | disconnected less than a minute ago |
+| No shares | connected, but no accepted share for `staleAfterSec` |
+| Mining elsewhere | not connected, but its ccminer API answers and says it's on another pool (usually its backup pool) — hover for the pool |
+| Offline | not connected and ccminer not reachable |
+
+For a backup pool in ccminer's own config, add `"time-limit": 900` to the backup entry so ccminer returns to the proxy after 15 minutes instead of staying on the backup until it fails. (`"timeout"` is a global ccminer option, not a per-pool one.)
+
 # Run at boot and restart when stalled (Linux / systemd)
 
 Service files are in `deploy/`. Edit `User=` and the paths in `verusproxy.service` (the example assumes user `pi` and `/home/pi/verusProxy`; `which node` shows the node path), then:

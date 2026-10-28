@@ -201,7 +201,7 @@ input[type=checkbox] { accent-color: var(--s1); width: 15px; height: 15px; margi
       <button data-v="rep" title="What ccminer reports on each device">Device-reported</button><button data-v="eff" title="Calculated from shares accepted by the pool">Pool-side</button>
     </div>
     <input type="search" id="q" placeholder="Search name, model, IP…" aria-label="Search devices">
-    <select id="fStatus" aria-label="Status"><option value="">All statuses</option><option value="online">Online</option><option value="stale">No shares</option><option value="offline">Offline</option></select>
+    <select id="fStatus" aria-label="Status"><option value="">All statuses</option><option value="online">Online</option><option value="reconnecting">Reconnecting</option><option value="stale">No shares</option><option value="elsewhere">Mining elsewhere</option><option value="offline">Offline</option></select>
     <select id="fMake" aria-label="Make"><option value="">All makes</option></select>
     <select id="fOs" aria-label="System"><option value="">All systems</option></select>
     <select id="fTemp" aria-label="Temperature"><option value="">Any temperature</option><option value="60">CPU ≥ 60 °C</option><option value="70">CPU ≥ 70 °C</option><option value="80">CPU ≥ 80 °C</option></select>
@@ -268,7 +268,7 @@ function tempLevel(t) {
   if (t >= 60) return ['--warning', 'warm'];
   return ['--good', 'ok'];
 }
-const STATUS = { online: ['--good', 'Online'], stale: ['--warning', 'No shares'], offline: ['--critical', 'Offline'] };
+const STATUS = { online: ['--good', 'Online'], reconnecting: ['--warning', 'Reconnecting'], stale: ['--warning', 'No shares'], elsewhere: ['--serious', 'Mining elsewhere'], offline: ['--critical', 'Offline'] };
 
 // ---------- state ----------
 const state = {
@@ -286,7 +286,7 @@ const state = {
 const hashOf = (w) => state.metric === 'rep' ? (w.repHashrate ?? null) : w.effHashrate;
 const COLS = [
   { key: 'plot', label: '', nosort: true, fixed: true },
-  { key: 'status', label: 'Status', val: w => ({ online: 0, stale: 1, offline: 2 })[w.status] },
+  { key: 'status', label: 'Status', val: w => ({ online: 0, reconnecting: 1, stale: 2, elsewhere: 3, offline: 4 })[w.status] },
   { key: 'name', label: 'Worker', val: w => w.name.toLowerCase(), fixed: true },
   { key: 'make', label: 'Make', val: w => (w.make || '').toLowerCase() },
   { key: 'model', label: 'Model', val: w => (w.model || '').toLowerCase() },
@@ -362,7 +362,7 @@ function renderKpis() {
     ? 'Pool-side ' + fmtH(eff) + ' · ' + shareBasis(t.effShares, t.effSpanSec, s.hashrateWindowSec)
     : (rep > 0 ? 'Device-reported ' + fmtH(rep) : shareBasis(t.effShares, t.effSpanSec, s.hashrateWindowSec));
   $('kOnline').textContent = t.online + ' / ' + t.devices;
-  $('kOnlineSub').textContent = [t.offline ? t.offline + ' offline' : 'none offline', t.stale ? t.stale + ' without shares' : ''].filter(Boolean).join(' · ');
+  $('kOnlineSub').textContent = [t.offline ? t.offline + ' offline' : 'none offline', t.elsewhere ? t.elsewhere + ' mining elsewhere' : '', t.reconnecting ? t.reconnecting + ' reconnecting' : '', t.stale ? t.stale + ' without shares' : ''].filter(Boolean).join(' · ');
   $('kAvg').textContent = t.online ? fmtH(main / t.online) : '—';
   const hashes = s.workers.filter(w => w.status !== 'offline').map(hashOf).filter(h => h > 0);
   $('kAvgSub').textContent = hashes.length ? 'Range ' + fmtH(Math.min(...hashes)) + ' – ' + fmtH(Math.max(...hashes)) : '—';
@@ -446,7 +446,14 @@ function renderTable() {
           td.appendChild(cb);
           break;
         }
-        case 'status': { const [v, l] = STATUS[w.status]; cell(tr, dot(v, l, 'status')); break; }
+        case 'status': {
+          const [v, l] = STATUS[w.status] || STATUS.offline;
+          const td = cell(tr, dot(v, l, 'status'));
+          if (w.status === 'elsewhere') td.title = 'ccminer is running but not connected to this proxy' + (w.minerPoolUrl ? ': it is on ' + w.minerPoolUrl : '') + '. Usually it failed over to its backup pool.';
+          else if (w.status === 'reconnecting') td.title = 'Disconnected less than a minute ago; ccminer normally reconnects within seconds.';
+          else if (w.status === 'offline') td.title = 'Not connected and ccminer not reachable' + (w.lastSeen ? ' · last seen ' + fmtAgo(w.lastSeen, state.stats.time) : '');
+          break;
+        }
         case 'name': {
           const td = cell(tr, w.name, 'name');
           const col = seriesColorFor(w.name);
