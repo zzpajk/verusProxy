@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verus Fleet</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22%3E%3Cpath d=%22M1 12l4-5 3 3 6-8%22 fill=%22none%22 stroke=%22%232a78d6%22 stroke-width=%222%22/%3E%3C/svg%3E">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --ring: rgba(11,11,11,0.10);
+  --wash: rgba(11,11,11,0.04);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+  --good: #0ca30c; --warning: #fab219; --serious: #ec835a; --critical: #d03b3b;
+  --good-ink: #006300;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.05);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --good-ink: #0ca30c;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10); --wash: rgba(255,255,255,0.05);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --good-ink: #0ca30c;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--page); color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1440px; margin: 0 auto; padding: 20px 16px 48px; }
+header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+header h1 { font-size: 18px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+header .meta { color: var(--ink-2); font-size: 13px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.badge { font-size: 12px; padding: 1px 8px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--ring); color: var(--ink-2); }
+.live-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--good); margin-right: 6px; vertical-align: 1px; }
+.live-dot.off { background: var(--critical); }
+.spacer { flex: 1; }
+
+.card { background: var(--surface); border-radius: 12px; box-shadow: 0 0 0 1px var(--ring); }
+.kpis { display: grid; grid-template-columns: 1.4fr repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+.kpi { padding: 14px 16px; min-width: 0; }
+.kpi .label { color: var(--ink-2); font-size: 12.5px; }
+.kpi .value { font-size: 24px; font-weight: 650; letter-spacing: -0.01em; margin-top: 2px; white-space: nowrap; }
+.kpi.hero .value { font-size: 34px; }
+.kpi .sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 1000px) { .kpis { grid-template-columns: repeat(2, 1fr); } .kpi.hero { grid-column: 1 / -1; } }
+
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 18px 0 12px; }
+.filters input, .filters select, .btn {
+  font: inherit; font-size: 13px; color: var(--ink); background: var(--surface);
+  border: 0; box-shadow: inset 0 0 0 1px var(--ring); border-radius: 8px; padding: 6px 10px; height: 32px;
+}
+.filters input[type=search] { width: 220px; max-width: 100%; }
+.btn { cursor: pointer; }
+.btn:hover { background: var(--wash); }
+.filters .count { color: var(--ink-2); font-size: 13px; margin-left: 4px; }
+.seg { display: inline-flex; box-shadow: inset 0 0 0 1px var(--ring); border-radius: 8px; overflow: hidden; height: 30px; }
+.seg button { font: inherit; font-size: 12.5px; border: 0; background: transparent; color: var(--ink-2); padding: 0 10px; cursor: pointer; }
+.seg button + button { box-shadow: -1px 0 0 var(--ring); }
+.seg button[aria-pressed="true"] { background: var(--wash); color: var(--ink); font-weight: 600; }
+
+.chart-card { padding: 14px 16px 10px; }
+.chart-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 6px; }
+.chart-head h2 { font-size: 14px; font-weight: 600; margin: 0; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--ink-2); margin: 2px 0 6px; min-height: 18px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 14px; height: 2px; border-radius: 1px; }
+.chart { position: relative; height: 300px; transition: opacity .2s; }
+.chart.loading { opacity: .55; }
+@media (max-width: 600px) { .chart { height: 220px; } }
+.chart svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.chart .empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 13px; }
+.tip {
+  position: absolute; pointer-events: none; z-index: 5; background: var(--surface); color: var(--ink);
+  box-shadow: 0 0 0 1px var(--ring), 0 6px 20px rgba(0,0,0,.12); border-radius: 8px; padding: 8px 10px; font-size: 12.5px;
+  min-width: 160px; display: none;
+}
+.tip .when { color: var(--muted); margin-bottom: 4px; }
+.tip .row { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+.tip .row i { width: 12px; height: 2px; border-radius: 1px; flex: none; }
+.tip .row b { font-weight: 650; font-variant-numeric: tabular-nums; min-width: 72px; }
+.tip .row span { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; max-width: 180px; }
+
+.table-card { margin-top: 12px; overflow: hidden; }
+.table-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 7px 10px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--grid); }
+th { font-weight: 600; color: var(--ink-2); font-size: 12px; position: sticky; top: 0; background: var(--surface); cursor: pointer; user-select: none; }
+th.nosort { cursor: default; }
+th .arr { color: var(--muted); margin-left: 3px; font-size: 10px; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr:hover td { background: var(--wash); }
+tbody tr.offline td { color: var(--muted); }
+td .key { display: inline-block; width: 12px; height: 2px; border-radius: 1px; vertical-align: middle; margin-left: 6px; }
+td.name { font-weight: 600; }
+td .dim { color: var(--muted); }
+.status { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.status i, .temp i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+.temp { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.forget { font: inherit; font-size: 12px; color: var(--ink-2); background: none; border: 0; cursor: pointer; text-decoration: underline; padding: 0; }
+.table-foot { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 10px 12px; color: var(--muted); font-size: 12.5px; }
+input[type=checkbox] { accent-color: var(--s1); width: 15px; height: 15px; margin: 0; vertical-align: middle; cursor: pointer; }
+
+.colmenu { position: relative; }
+.colmenu .panel {
+  position: absolute; right: 0; top: 36px; z-index: 10; background: var(--surface); border-radius: 10px;
+  box-shadow: 0 0 0 1px var(--ring), 0 8px 24px rgba(0,0,0,.14); padding: 8px; display: none; width: 210px;
+  max-height: 360px; overflow: auto;
+}
+.colmenu.open .panel { display: block; }
+.colmenu label { display: flex; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 6px; font-size: 13px; cursor: pointer; }
+.colmenu label:hover { background: var(--wash); }
+.note { color: var(--muted); font-size: 12.5px; margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Verus fleet</h1>
+    <div class="meta">
+      <span id="poolInfo">—</span>
+      <span id="liveInfo"><span class="live-dot"></span>connecting…</span>
+      <span id="demoBadge" class="badge" hidden>Demo data</span>
+    </div>
+  </header>
+
+  <section class="kpis">
+    <div class="card kpi hero"><div class="label" id="kHashLabel">Fleet hashrate</div><div class="value" id="kHash">—</div><div class="sub" id="kHashSub">—</div></div>
+    <div class="card kpi"><div class="label">Devices online</div><div class="value" id="kOnline">—</div><div class="sub" id="kOnlineSub">—</div></div>
+    <div class="card kpi"><div class="label">Average per device</div><div class="value" id="kAvg">—</div><div class="sub" id="kAvgSub">—</div></div>
+    <div class="card kpi"><div class="label">Shares</div><div class="value" id="kShares">—</div><div class="sub" id="kSharesSub">—</div></div>
+    <div class="card kpi"><div class="label">CPU temperature</div><div class="value" id="kTemp">—</div><div class="sub" id="kTempSub">—</div></div>
+  </section>
+
+  <div class="filters" role="group" aria-label="Filters">
+    <div class="seg" id="rangeSeg" role="group" aria-label="Time range">
+      <button data-v="1h">1h</button><button data-v="6h">6h</button><button data-v="24h">24h</button><button data-v="7d">7d</button><button data-v="30d">30d</button>
+    </div>
+    <div class="seg" id="metricSeg" role="group" aria-label="Hashrate source">
+      <button data-v="rep" title="What ccminer reports on each device">Device-reported</button><button data-v="eff" title="Calculated from shares accepted by the pool">Pool-side</button>
+    </div>
+    <input type="search" id="q" placeholder="Search name, model, IP…" aria-label="Search devices">
+    <select id="fStatus" aria-label="Status"><option value="">All statuses</option><option value="online">Online</option><option value="stale">No shares</option><option value="offline">Offline</option></select>
+    <select id="fMake" aria-label="Make"><option value="">All makes</option></select>
+    <select id="fOs" aria-label="System"><option value="">All systems</option></select>
+    <select id="fTemp" aria-label="Temperature"><option value="">Any temperature</option><option value="60">CPU ≥ 60 °C</option><option value="70">CPU ≥ 70 °C</option><option value="80">CPU ≥ 80 °C</option></select>
+    <span class="count" id="filterCount"></span>
+    <button class="btn" id="clearFilters" hidden>Clear</button>
+  </div>
+
+  <section class="card chart-card">
+    <div class="chart-head">
+      <h2 id="chartTitle">Hashrate</h2>
+      <span class="spacer"></span>
+      <button class="btn" id="plotFiltered" title="Plot each filtered device as its own line (up to 6)">Plot filtered devices</button>
+      <button class="btn" id="toggleTotals" hidden title="Hide the total lines so individual devices fill the chart">Hide totals</button>
+      <button class="btn" id="clearPlot" hidden>Clear plotted</button>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="chart" id="chart"><svg id="svg" aria-label="Hashrate over time"></svg><div class="tip" id="tip"></div></div>
+  </section>
+
+  <section class="card table-card">
+    <div class="table-scroll"><table id="tbl"><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>
+    <div class="table-foot">
+      <span id="tableNote">Tick a device to plot it. Click a column to sort.</span>
+      <div class="colmenu" id="colmenu"><button class="btn" id="colBtn">Columns</button><div class="panel" id="colPanel"></div></div>
+    </div>
+  </section>
+  <p class="note" id="footNote"></p>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = (id) => document.getElementById(id);
+const SERIES = ['--s1','--s2','--s3','--s4','--s5','--s6','--s7','--s8'];
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('vp.' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('vp.' + k, JSON.stringify(v)); } catch (e) {} }
+};
+
+// ---------- formatting ----------
+function fmtH(h, digits) {
+  if (h === null || h === undefined || !isFinite(h)) return '—';
+  const u = ['H/s','kH/s','MH/s','GH/s','TH/s','PH/s'];
+  let i = 0; while (Math.abs(h) >= 1000 && i < u.length - 1) { h /= 1000; i++; }
+  const d = digits !== undefined ? digits : (Math.abs(h) >= 100 ? 1 : 2);
+  return h.toFixed(d) + ' ' + u[i];
+}
+function fmtDur(sec) {
+  if (sec === null || sec === undefined || !isFinite(sec)) return '—';
+  sec = Math.max(0, Math.floor(sec));
+  const d = Math.floor(sec / 86400), h = Math.floor(sec % 86400 / 3600), m = Math.floor(sec % 3600 / 60);
+  if (d) return d + 'd ' + h + 'h';
+  if (h) return h + 'h ' + m + 'm';
+  if (m) return m + 'm';
+  return sec + 's';
+}
+function fmtAgo(ts, now) { return ts ? fmtDur((now - ts) / 1000) + ' ago' : '—'; }
+const fmtInt = (n) => n === null || n === undefined ? '—' : Math.round(n).toLocaleString();
+function tempLevel(t) {
+  if (t === null || t === undefined) return null;
+  if (t >= 80) return ['--critical', 'critical'];
+  if (t >= 70) return ['--serious', 'hot'];
+  if (t >= 60) return ['--warning', 'warm'];
+  return ['--good', 'ok'];
+}
+const STATUS = { online: ['--good', 'Online'], stale: ['--warning', 'No shares'], offline: ['--critical', 'Offline'] };
+
+// ---------- state ----------
+const state = {
+  range: store.get('range', '6h'),
+  metric: store.get('metric', 'rep'),
+  sort: store.get('sort', { key: 'hash', dir: -1 }),
+  plotted: store.get('plotted', []),
+  showTotals: store.get('showTotals', true),
+  hiddenCols: store.get('hiddenCols', ['address','kernel','arch','ram','load','ping','freq','firstSeen','minerShares','threads']),
+  stats: null, history: null, demo: false, lastOk: 0
+};
+
+// ---------- columns ----------
+const hashOf = (w) => state.metric === 'rep' ? (w.repHashrate ?? null) : w.effHashrate;
+const COLS = [
+  { key: 'plot', label: '', nosort: true, fixed: true },
+  { key: 'status', label: 'Status', val: w => ({ online: 0, stale: 1, offline: 2 })[w.status] },
+  { key: 'name', label: 'Worker', val: w => w.name.toLowerCase(), fixed: true },
+  { key: 'make', label: 'Make', val: w => (w.make || '').toLowerCase() },
+  { key: 'model', label: 'Model', val: w => (w.model || '').toLowerCase() },
+  { key: 'soc', label: 'SoC / CPU', val: w => (w.soc || '').toLowerCase() },
+  { key: 'os', label: 'System', val: w => (w.os || '').toLowerCase() },
+  { key: 'kernel', label: 'Kernel', val: w => w.kernel || '' },
+  { key: 'arch', label: 'Arch', val: w => w.arch || '' },
+  { key: 'cores', label: 'Cores', num: true, val: w => w.cores },
+  { key: 'freq', label: 'CPU MHz', num: true, val: w => w.cpuFreq },
+  { key: 'ram', label: 'RAM', num: true, val: w => w.ramMB },
+  { key: 'temp', label: 'CPU °C', num: true, val: w => w.cpuTemp },
+  { key: 'battery', label: 'Battery', num: true, val: w => w.batteryTemp ?? w.batteryLevel },
+  { key: 'load', label: 'Load', num: true, val: w => w.load },
+  { key: 'hash', label: 'Hashrate', num: true, val: w => hashOf(w) },
+  { key: 'other', label: 'Pool-side', num: true, val: w => state.metric === 'rep' ? w.effHashrate : w.repHashrate },
+  { key: 'perCore', label: 'Per core', num: true, val: w => { const h = hashOf(w); return h && w.cores ? h / w.cores : null; } },
+  { key: 'threads', label: 'Threads', num: true, val: w => w.threads ? w.threads.length : null },
+  { key: 'shares', label: 'Accepted', num: true, val: w => w.accepted },
+  { key: 'rej', label: 'Reject %', num: true, val: w => (w.accepted + w.rejected) ? w.rejected / (w.accepted + w.rejected) : null },
+  { key: 'minerShares', label: 'ccminer A/R', num: true, val: w => w.minerAccepted },
+  { key: 'software', label: 'Miner', val: w => w.software || '' },
+  { key: 'ping', label: 'Ping ms', num: true, val: w => w.ping },
+  { key: 'ip', label: 'IP', val: w => (w.ip || '').split('.').map(x => x.padStart(3, '0')).join('.') },
+  { key: 'address', label: 'Wallet', val: w => w.address || '' },
+  { key: 'uptime', label: 'Mining for', num: true, val: w => w.minerUptime ?? (w.connectedSince ? (state.stats.time - w.connectedSince) / 1000 : null) },
+  { key: 'lastShare', label: 'Last share', num: true, val: w => w.lastShare ? -w.lastShare : null },
+  { key: 'firstSeen', label: 'First seen', num: true, val: w => w.firstSeen },
+  { key: 'action', label: '', nosort: true, fixed: true }
+];
+
+function visibleCols() { return COLS.filter(c => c.fixed || !state.hiddenCols.includes(c.key)); }
+
+// ---------- filtering ----------
+function filters() {
+  return { q: $('q').value.trim().toLowerCase(), status: $('fStatus').value, make: $('fMake').value, os: $('fOs').value, temp: Number($('fTemp').value) || 0 };
+}
+function filterActive(f) { return !!(f.q || f.status || f.make || f.os || f.temp); }
+function filtered() {
+  if (!state.stats) return [];
+  const f = filters();
+  return state.stats.workers.filter(w => {
+    if (f.status && w.status !== f.status) return false;
+    if (f.make && (w.make || 'Unknown') !== f.make) return false;
+    if (f.os && osFamily(w.os) !== f.os) return false;
+    if (f.temp && !(w.cpuTemp >= f.temp)) return false;
+    if (f.q) {
+      const hay = [w.name, w.make, w.model, w.soc, w.os, w.ip, w.software, w.address].join(' ').toLowerCase();
+      if (!hay.includes(f.q)) return false;
+    }
+    return true;
+  });
+}
+function osFamily(os) { if (!os) return 'Unknown'; const m = os.match(/^(Android \d+|[A-Za-z]+(?: [A-Za-z]+)?(?: \d+)?)/); return m ? m[1] : os; }
+
+function fillSelect(sel, values, label) {
+  const cur = sel.value;
+  const opts = ['', ...Array.from(new Set(values)).sort()];
+  if (sel.dataset.sig === opts.join('|')) return;
+  sel.dataset.sig = opts.join('|');
+  sel.textContent = '';
+  for (const v of opts) { const o = document.createElement('option'); o.value = v; o.textContent = v || label; sel.appendChild(o); }
+  sel.value = opts.includes(cur) ? cur : '';
+}
+
+// ---------- KPIs ----------
+function renderKpis() {
+  const s = state.stats, t = s.totals, now = s.time;
+  const rep = t.repHashrate, eff = t.effHashrate;
+  const main = state.metric === 'rep' && rep > 0 ? rep : eff;
+  $('kHashLabel').textContent = state.metric === 'rep' && rep > 0 ? 'Fleet hashrate · device-reported' : 'Fleet hashrate · pool-side';
+  $('kHash').textContent = fmtH(main);
+  $('kHashSub').textContent = state.metric === 'rep' && rep > 0
+    ? 'Pool-side ' + fmtH(eff) + ' over ' + Math.round(s.hashrateWindowSec / 60) + ' min'
+    : (rep > 0 ? 'Device-reported ' + fmtH(rep) : 'Averaged over ' + Math.round(s.hashrateWindowSec / 60) + ' min of shares');
+  $('kOnline').textContent = t.online + ' / ' + t.devices;
+  $('kOnlineSub').textContent = [t.offline ? t.offline + ' offline' : 'none offline', t.stale ? t.stale + ' without shares' : ''].filter(Boolean).join(' · ');
+  $('kAvg').textContent = t.online ? fmtH(main / t.online) : '—';
+  const hashes = s.workers.filter(w => w.status !== 'offline').map(hashOf).filter(h => h > 0);
+  $('kAvgSub').textContent = hashes.length ? 'Range ' + fmtH(Math.min(...hashes)) + ' – ' + fmtH(Math.max(...hashes)) : '—';
+  const tot = t.accepted + t.rejected;
+  $('kShares').textContent = fmtInt(t.accepted);
+  $('kSharesSub').textContent = tot ? fmtInt(t.rejected) + ' rejected (' + (100 * t.rejected / tot).toFixed(2) + '%)' : 'No shares yet';
+  $('kTemp').textContent = t.avgTemp !== null ? t.avgTemp.toFixed(1) + ' °C avg' : '—';
+  const hot = s.workers.filter(w => w.status !== 'offline' && w.cpuTemp !== null).sort((a, b) => b.cpuTemp - a.cpuTemp)[0];
+  $('kTempSub').textContent = hot ? 'Hottest ' + hot.name + ' at ' + hot.cpuTemp.toFixed(0) + ' °C' : 'No temperature data yet';
+
+  $('poolInfo').textContent = s.pool ? 'Pool ' + s.pool + ' · proxy up ' + fmtDur((now - s.startedAt) / 1000) : '';
+}
+
+// ---------- table ----------
+function seriesColorFor(name) {
+  const i = state.plotted.indexOf(name);
+  return i < 0 ? null : css(SERIES[(i + 2) % SERIES.length]);
+}
+function cell(tr, text, cls) { const td = document.createElement('td'); if (cls) td.className = cls; if (text instanceof Node) td.appendChild(text); else td.textContent = text ?? '—'; tr.appendChild(td); return td; }
+function dot(color, label, cls) {
+  const s = document.createElement('span'); s.className = cls;
+  const i = document.createElement('i'); i.style.background = css(color); s.appendChild(i);
+  s.appendChild(document.createTextNode(label)); return s;
+}
+function renderHead() {
+  const tr = $('thead'); tr.textContent = '';
+  for (const c of visibleCols()) {
+    const th = document.createElement('th');
+    if (c.num) th.className = 'num';
+    if (c.nosort) th.classList.add('nosort');
+    th.textContent = c.key === 'hash' ? (state.metric === 'rep' ? 'Hashrate' : 'Pool-side')
+                   : c.key === 'other' ? (state.metric === 'rep' ? 'Pool-side' : 'Reported') : c.label;
+    if (!c.nosort) {
+      if (state.sort.key === c.key) { const a = document.createElement('span'); a.className = 'arr'; a.textContent = state.sort.dir > 0 ? '▲' : '▼'; th.appendChild(a); }
+      th.addEventListener('click', () => {
+        state.sort = { key: c.key, dir: state.sort.key === c.key ? -state.sort.dir : (c.num ? -1 : 1) };
+        store.set('sort', state.sort); renderTable();
+      });
+    }
+    tr.appendChild(th);
+  }
+}
+function renderTable() {
+  renderHead();
+  const rows = filtered();
+  const col = COLS.find(c => c.key === state.sort.key) || COLS.find(c => c.key === 'hash');
+  rows.sort((a, b) => {
+    const va = col.val(a), vb = col.val(b);
+    const na = va === null || va === undefined || va === '', nb = vb === null || vb === undefined || vb === '';
+    if (na && nb) return a.name.localeCompare(b.name);
+    if (na) return 1; if (nb) return -1;
+    return (va < vb ? -1 : va > vb ? 1 : 0) * state.sort.dir || a.name.localeCompare(b.name);
+  });
+  const now = state.stats.time;
+  const tb = $('tbody'); tb.textContent = '';
+  const cols = visibleCols();
+  for (const w of rows) {
+    const tr = document.createElement('tr');
+    if (w.status === 'offline') tr.className = 'offline';
+    for (const c of cols) {
+      switch (c.key) {
+        case 'plot': {
+          const td = cell(tr, '');
+          const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = state.plotted.includes(w.name);
+          cb.setAttribute('aria-label', 'Plot ' + w.name);
+          cb.addEventListener('change', () => togglePlot(w.name, cb.checked));
+          td.appendChild(cb);
+          break;
+        }
+        case 'status': { const [v, l] = STATUS[w.status]; cell(tr, dot(v, l, 'status')); break; }
+        case 'name': {
+          const td = cell(tr, w.name, 'name');
+          const col = seriesColorFor(w.name);
+          if (col) { const k = document.createElement('i'); k.className = 'key'; k.style.background = col; td.appendChild(k); }
+          if (w.connections > 1) { const s = document.createElement('span'); s.className = 'dim'; s.textContent = ' ×' + w.connections; td.appendChild(s); }
+          break;
+        }
+        case 'make': cell(tr, w.make); break;
+        case 'model': cell(tr, w.model); break;
+        case 'soc': cell(tr, w.soc); break;
+        case 'os': cell(tr, w.os); break;
+        case 'kernel': cell(tr, w.kernel); break;
+        case 'arch': cell(tr, w.arch); break;
+        case 'cores': cell(tr, w.cores, 'num'); break;
+        case 'freq': cell(tr, w.cpuFreq ? fmtInt(w.cpuFreq) : null, 'num'); break;
+        case 'ram': cell(tr, w.ramMB ? (w.ramMB / 1024).toFixed(1) + ' GB' : null, 'num'); break;
+        case 'temp': {
+          const lv = tempLevel(w.cpuTemp);
+          cell(tr, lv ? dot(lv[0], w.cpuTemp.toFixed(0) + ' °C', 'temp') : '—', 'num');
+          break;
+        }
+        case 'battery': {
+          const parts = [];
+          if (w.batteryTemp !== null && w.batteryTemp !== undefined) parts.push(w.batteryTemp.toFixed(1) + ' °C');
+          if (w.batteryLevel !== null && w.batteryLevel !== undefined) parts.push(Math.round(w.batteryLevel) + '%' + (/^(charging|full)$/i.test(w.charging || '') ? ' ⚡' : ''));
+          cell(tr, parts.length ? parts.join(' · ') : null, 'num'); break;
+        }
+        case 'load': cell(tr, w.load !== null && w.load !== undefined ? w.load.toFixed(2) : null, 'num'); break;
+        case 'hash': cell(tr, fmtH(hashOf(w)), 'num'); break;
+        case 'other': cell(tr, fmtH(state.metric === 'rep' ? w.effHashrate : w.repHashrate), 'num'); break;
+        case 'perCore': cell(tr, fmtH(c.val(w)), 'num'); break;
+        case 'threads': cell(tr, w.threads ? w.threads.length : null, 'num'); break;
+        case 'shares': cell(tr, fmtInt(w.accepted), 'num'); break;
+        case 'rej': { const v = c.val(w); cell(tr, v === null ? null : (v * 100).toFixed(2) + '%', 'num'); break; }
+        case 'minerShares': cell(tr, w.minerAccepted !== null && w.minerAccepted !== undefined ? fmtInt(w.minerAccepted) + ' / ' + fmtInt(w.minerRejected) : null, 'num'); break;
+        case 'software': cell(tr, w.software); break;
+        case 'ping': cell(tr, w.ping, 'num'); break;
+        case 'ip': cell(tr, w.ip); break;
+        case 'address': cell(tr, w.address); break;
+        case 'uptime': cell(tr, w.status === 'offline' ? null : fmtDur(c.val(w)), 'num'); break;
+        case 'lastShare': cell(tr, w.lastShare ? fmtAgo(w.lastShare, now) : null, 'num'); break;
+        case 'firstSeen': cell(tr, w.firstSeen ? new Date(w.firstSeen).toLocaleDateString() : null, 'num'); break;
+        case 'action': {
+          const td = cell(tr, '');
+          if (w.status === 'offline' && !state.demo) {
+            const b = document.createElement('button'); b.className = 'forget'; b.textContent = 'Forget';
+            b.addEventListener('click', () => forget(w.name)); td.appendChild(b);
+          }
+          break;
+        }
+      }
+    }
+    tb.appendChild(tr);
+  }
+  const f = filters();
+  $('filterCount').textContent = filterActive(f) ? rows.length + ' of ' + state.stats.workers.length + ' devices' : state.stats.workers.length + ' devices';
+  $('clearFilters').hidden = !filterActive(f);
+  $('clearPlot').hidden = state.plotted.length === 0;
+  $('toggleTotals').hidden = state.plotted.length === 0;
+  $('toggleTotals').textContent = state.showTotals ? 'Hide totals' : 'Show totals';
+}
+
+function renderColMenu() {
+  const p = $('colPanel'); p.textContent = '';
+  for (const c of COLS) {
+    if (c.fixed) continue;
+    const l = document.createElement('label');
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !state.hiddenCols.includes(c.key);
+    cb.addEventListener('change', () => {
+      state.hiddenCols = cb.checked ? state.hiddenCols.filter(k => k !== c.key) : state.hiddenCols.concat(c.key);
+      store.set('hiddenCols', state.hiddenCols); renderTable();
+    });
+    l.appendChild(cb); l.appendChild(document.createTextNode(c.label));
+    p.appendChild(l);
+  }
+}
+
+function togglePlot(name, on) {
+  state.plotted = on ? Array.from(new Set(state.plotted.concat(name))).slice(-6) : state.plotted.filter(n => n !== name);
+  store.set('plotted', state.plotted);
+  renderTable(); renderChart();
+}
+
+// ---------- chart ----------
+function chartSeries() {
+  const h = state.history; if (!h) return [];
+  const totals = state.showTotals || state.plotted.length === 0;
+  const out = totals ? [{ name: 'All devices', color: css('--s1'), values: h.total, width: 2.5 }] : [];
+  const f = filters();
+  if (totals && filterActive(f)) {
+    const names = new Set(filtered().map(w => w.name));
+    const vals = h.t.map((_, i) => {
+      let sum = 0, any = false;
+      for (const n of names) { const v = h.workers[n] ? h.workers[n][i] : null; if (v !== null && v !== undefined) { sum += v; any = true; } }
+      return any ? sum : (h.metric === 'eff' ? 0 : null);
+    });
+    out.push({ name: 'Filtered (' + names.size + ')', color: css('--s2'), values: vals, width: 2 });
+  }
+  state.plotted.forEach((n, i) => {
+    out.push({ name: n, color: css(SERIES[(i + 2) % SERIES.length]), values: h.workers[n] || h.t.map(() => null), width: 1.5 });
+  });
+  return out;
+}
+
+function niceTicks(max, count) {
+  if (!(max > 0)) return [0, 1];
+  const raw = max / count, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw);
+  const ticks = []; for (let v = 0; v <= max + step * 0.001; v += step) ticks.push(v);
+  if (ticks[ticks.length - 1] < max) ticks.push(ticks[ticks.length - 1] + step);
+  return ticks;
+}
+function fmtTime(t, span) {
+  const d = new Date(t);
+  if (span <= 26 * 3600e3) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+const NS = 'http://www.w3.org/2000/svg';
+function el(name, attrs, parent) { const e = document.createElementNS(NS, name); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+
+function renderChart() {
+  const svg = $('svg'), box = $('chart');
+  svg.textContent = '';
+  box.querySelectorAll('.empty').forEach(e => e.remove());
+  const series = chartSeries();
+  const legend = $('legend'); legend.textContent = '';
+  for (const s of series) {
+    const sp = document.createElement('span'); const i = document.createElement('i'); i.style.background = s.color; i.style.height = s.width > 2 ? '3px' : '2px';
+    sp.appendChild(i); sp.appendChild(document.createTextNode(s.name)); legend.appendChild(sp);
+  }
+  $('chartTitle').textContent = (state.history && state.history.metric === 'rep' ? 'Device-reported' : 'Pool-side') + ' hashrate · last ' + state.range;
+  const h = state.history;
+  if (!h || h.t.length < 2) {
+    const e = document.createElement('div'); e.className = 'empty';
+    e.textContent = 'Collecting history — a point is recorded every minute.'; box.appendChild(e); return;
+  }
+  const W = box.clientWidth, H = box.clientHeight;
+  const m = { l: 70, r: 12, t: 10, b: 26 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const t0 = h.t[0], t1 = h.t[h.t.length - 1], span = t1 - t0 || 1;
+  let max = 0; for (const s of series) for (const v of s.values) if (v > max) max = v;
+  const ticks = niceTicks(max, 4), ymax = ticks[ticks.length - 1] || 1;
+  const x = (t) => m.l + (t - t0) / span * iw;
+  const y = (v) => m.t + ih - v / ymax * ih;
+
+  const g = el('g', {}, svg);
+  for (const tv of ticks) {
+    el('line', { x1: m.l, x2: W - m.r, y1: y(tv), y2: y(tv), stroke: tv === 0 ? css('--axis') : css('--grid'), 'stroke-width': 1 }, g);
+    const tx = el('text', { x: m.l - 8, y: y(tv) + 4, 'text-anchor': 'end', fill: css('--muted'), 'font-size': 11, 'font-variant-numeric': 'tabular-nums' }, g);
+    tx.textContent = fmtH(tv, tv === 0 ? 0 : undefined).replace(/\.0+ /, ' ');
+  }
+  const nx = Math.max(1, Math.min(7, Math.floor(iw / 110), Math.floor(span / 60000)));
+  let lastLabel = '';
+  for (let i = 0; i <= nx; i++) {
+    const t = t0 + span * i / nx;
+    const label = fmtTime(t, span);
+    if (label === lastLabel) continue;
+    lastLabel = label;
+    const tx = el('text', { x: x(t), y: H - 6, 'text-anchor': i === 0 ? 'start' : i === nx ? 'end' : 'middle', fill: css('--muted'), 'font-size': 11 }, g);
+    tx.textContent = label;
+  }
+  // lines, drawn back to front so "All devices" stays on top
+  for (const s of series.slice().reverse()) {
+    let d = '', pen = false;
+    s.values.forEach((v, i) => {
+      if (v === null || v === undefined) { pen = false; return; }
+      d += (pen ? 'L' : 'M') + x(h.t[i]).toFixed(1) + ',' + y(v).toFixed(1); pen = true;
+    });
+    if (d) el('path', { d, fill: 'none', stroke: s.color, 'stroke-width': s.width, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, svg);
+  }
+  // crosshair + tooltip
+  const cross = el('line', { y1: m.t, y2: m.t + ih, stroke: css('--axis'), 'stroke-width': 1, visibility: 'hidden' }, svg);
+  const dots = series.map(s => el('circle', { r: 4, fill: s.color, stroke: css('--surface'), 'stroke-width': 2, visibility: 'hidden' }, svg));
+  const hit = el('rect', { x: m.l, y: m.t, width: iw, height: ih, fill: 'transparent' }, svg);
+  const tip = $('tip');
+  const move = (ev) => {
+    const r = svg.getBoundingClientRect();
+    const px = ev.clientX - r.left;
+    const tt = t0 + (px - m.l) / iw * span;
+    let i = 0, best = Infinity;
+    h.t.forEach((t, k) => { const dd = Math.abs(t - tt); if (dd < best) { best = dd; i = k; } });
+    const cx = x(h.t[i]);
+    cross.setAttribute('x1', cx); cross.setAttribute('x2', cx); cross.setAttribute('visibility', 'visible');
+    tip.textContent = '';
+    const when = document.createElement('div'); when.className = 'when';
+    when.textContent = new Date(h.t[i]).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    tip.appendChild(when);
+    series.forEach((s, k) => {
+      const v = s.values[i];
+      if (v === null || v === undefined) { dots[k].setAttribute('visibility', 'hidden'); }
+      else { dots[k].setAttribute('cx', cx); dots[k].setAttribute('cy', y(v)); dots[k].setAttribute('visibility', 'visible'); }
+      const row = document.createElement('div'); row.className = 'row';
+      const ic = document.createElement('i'); ic.style.background = s.color;
+      const b = document.createElement('b'); b.textContent = fmtH(v);
+      const sp = document.createElement('span'); sp.textContent = s.name;
+      row.append(ic, b, sp); tip.appendChild(row);
+    });
+    tip.style.display = 'block';
+    const tw = tip.offsetWidth;
+    tip.style.left = (cx + 14 + tw > W ? cx - 14 - tw : cx + 14) + 'px';
+    tip.style.top = Math.max(0, m.t + 4) + 'px';
+  };
+  hit.addEventListener('pointermove', move);
+  hit.addEventListener('pointerleave', () => { tip.style.display = 'none'; cross.setAttribute('visibility', 'hidden'); dots.forEach(d => d.setAttribute('visibility', 'hidden')); });
+}
+
+// ---------- data ----------
+async function getJSON(url) {
+  const r = await fetch(url, { cache: 'no-store' });
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+async function loadStats() {
+  try {
+    state.stats = state.demo ? Demo.stats() : await getJSON('api/stats');
+    state.lastOk = Date.now();
+    setLive(true);
+  } catch (e) {
+    if (!state.stats) { startDemo(); return; }
+    setLive(false);
+    return;
+  }
+  const ws = state.stats.workers;
+  fillSelect($('fMake'), ws.map(w => w.make || 'Unknown'), 'All makes');
+  fillSelect($('fOs'), ws.map(w => osFamily(w.os)), 'All systems');
+  renderKpis(); renderTable();
+}
+async function loadHistory() {
+  $('chart').classList.add('loading');
+  try {
+    state.history = state.demo ? Demo.history(state.range, state.metric) : await getJSON('api/history?range=' + state.range + '&metric=' + state.metric);
+    // no ccminer API data reachable yet: fall back to the pool-side series
+    if (!state.demo && state.metric === 'rep' && state.history.total.every(v => v === null)) {
+      state.history = await getJSON('api/history?range=' + state.range + '&metric=eff');
+    }
+  } catch (e) {}
+  $('chart').classList.remove('loading');
+  renderChart();
+}
+function setLive(ok) {
+  const li = $('liveInfo'); li.textContent = '';
+  const d = document.createElement('span'); d.className = 'live-dot' + (ok ? '' : ' off'); li.appendChild(d);
+  li.appendChild(document.createTextNode(state.demo ? 'Simulated fleet' : ok ? 'Live · updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Proxy unreachable — showing last data'));
+}
+async function forget(name) {
+  try { await fetch('api/forget', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ worker: name }) }); } catch (e) {}
+  state.plotted = state.plotted.filter(n => n !== name); store.set('plotted', state.plotted);
+  loadStats();
+}
+function startDemo() {
+  state.demo = true;
+  $('demoBadge').hidden = false;
+  $('footNote').textContent = 'Demo data: this page is not connected to a verusProxy. Served by the proxy (http://<proxy-ip>:8080) it shows your live fleet.';
+  loadStats(); loadHistory();
+}
+
+// ---------- controls ----------
+function bindSeg(id, key, after) {
+  const seg = $(id);
+  const paint = () => seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === state[key])));
+  seg.addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    state[key] = b.dataset.v; store.set(key, state[key]); paint(); after();
+  });
+  paint();
+}
+bindSeg('rangeSeg', 'range', loadHistory);
+bindSeg('metricSeg', 'metric', () => { loadHistory(); if (state.stats) { renderKpis(); renderTable(); } });
+for (const id of ['q', 'fStatus', 'fMake', 'fOs', 'fTemp']) $(id).addEventListener('input', () => { renderTable(); renderChart(); });
+$('clearFilters').addEventListener('click', () => { $('q').value = ''; for (const id of ['fStatus', 'fMake', 'fOs', 'fTemp']) $(id).value = ''; renderTable(); renderChart(); });
+$('plotFiltered').addEventListener('click', () => {
+  const col = COLS.find(c => c.key === state.sort.key) || COLS.find(c => c.key === 'hash');
+  const rows = filtered().slice().sort((a, b) => ((col.val(b) ?? -Infinity) > (col.val(a) ?? -Infinity) ? 1 : -1) * (state.sort.dir < 0 ? 1 : -1));
+  state.plotted = rows.slice(0, 6).map(w => w.name); store.set('plotted', state.plotted);
+  renderTable(); renderChart();
+});
+$('toggleTotals').addEventListener('click', () => { state.showTotals = !state.showTotals; store.set('showTotals', state.showTotals); renderTable(); renderChart(); });
+$('clearPlot').addEventListener('click', () => { state.plotted = []; store.set('plotted', []); renderTable(); renderChart(); });
+$('colBtn').addEventListener('click', (e) => { e.stopPropagation(); $('colmenu').classList.toggle('open'); });
+document.addEventListener('click', (e) => { if (!$('colmenu').contains(e.target)) $('colmenu').classList.remove('open'); });
+let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(renderChart, 120); });
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (state.stats) { renderTable(); renderChart(); } });
+
+// ---------- demo data (used only when no proxy answers) ----------
+const Demo = (() => {
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const models = [
+    ['Samsung', 'Galaxy S10', 'Exynos 9820', 'Android 12', 8, 6.9e6], ['Samsung', 'Galaxy S20 FE', 'Snapdragon 865', 'Android 13', 8, 11.2e6],
+    ['Samsung', 'Galaxy A52', 'Snapdragon 720G', 'Android 13', 8, 5.1e6], ['Xiaomi', 'Redmi Note 10 Pro', 'Snapdragon 732G', 'Android 12', 8, 5.6e6],
+    ['Xiaomi', 'Poco F3', 'Snapdragon 870', 'Android 13', 8, 12.4e6], ['OnePlus', 'OnePlus 8T', 'Snapdragon 865', 'Android 13', 8, 11.6e6],
+    ['Google', 'Pixel 6', 'Google Tensor', 'Android 14', 8, 9.8e6], ['Motorola', 'moto g9 plus', 'Snapdragon 730G', 'Android 11', 8, 5.3e6],
+    ['Raspberry', 'Raspberry Pi 4 Model B', 'brcm,bcm2711', 'Debian GNU/Linux 12', 4, 1.9e6], ['Raspberry', 'Raspberry Pi 5 Model B', 'brcm,bcm2712', 'Debian GNU/Linux 12', 4, 4.2e6],
+    ['Xunlong', 'Orange Pi 5', 'rockchip,rk3588s', 'Ubuntu 22.04.4 LTS', 8, 8.3e6]
+  ];
+  const now0 = Date.now();
+  const devs = [];
+  for (let i = 0; i < 26; i++) {
+    const mo = models[Math.floor(rnd() * models.length)];
+    const isPi = /Linux|Ubuntu/.test(mo[3]);
+    const base = mo[5] * (0.9 + rnd() * 0.2);
+    const status = i === 4 || i === 17 ? 'offline' : i === 11 ? 'stale' : 'online';
+    devs.push({
+      name: (isPi ? 'sbc' : 'phone') + String(i + 1).padStart(2, '0'), make: mo[0], model: mo[1], soc: mo[2], os: mo[3],
+      kernel: isPi ? '6.6.31-v8+' : '4.19.' + (100 + Math.floor(rnd() * 150)), arch: 'aarch64', cores: mo[4], ramMB: isPi ? 8000 : 6000 + Math.floor(rnd() * 3) * 2000,
+      base, temp: 48 + rnd() * 28 + (base > 10e6 ? 6 : 0), bat: isPi ? null : 30 + rnd() * 9, lvl: isPi ? null : 60 + Math.floor(rnd() * 40),
+      ip: '192.168.1.' + (101 + i), since: now0 - (2 + rnd() * 70) * 3600e3, status, born: now0 - (10 + rnd() * 25) * 86400e3,
+      acc: Math.floor(base / 1e6 * 900 * (1 + rnd())), rej: Math.floor(rnd() * 8)
+    });
+  }
+  const wobble = (d, t) => d.base * (1 + 0.04 * Math.sin(t / 3.6e6 + d.base) + 0.03 * Math.sin(t / 5.1e5 + d.temp));
+  function stats() {
+    const now = Date.now();
+    const workers = devs.map(d => {
+      const on = d.status !== 'offline';
+      const rep = on && d.status !== 'stale' ? wobble(d, now) : null;
+      return {
+        name: d.name, status: d.status, address: 'RDemoWalletAddress', ip: d.ip, connections: on ? 1 : 0, software: 'ccminer/3.8.3', xnsub: true,
+        connectedSince: on ? d.since : null, lastShare: d.status === 'online' ? now - rnd() * 40e3 : now - 9 * 60e3,
+        lastSeen: now, firstSeen: d.born, effHashrate: rep ? rep * (0.85 + rnd() * 0.3) : 0, repHashrate: rep,
+        accepted: d.acc, rejected: d.rej, minerAccepted: d.acc, minerRejected: d.rej, minerUptime: on ? (now - d.since) / 1000 : null,
+        minerSource: 'api', threads: on ? Array(d.cores).fill(0) : null, cpuFreq: on ? 1800 + Math.floor(rnd() * 900) : null, ping: on ? 20 + Math.floor(rnd() * 40) : null,
+        cpuTemp: on ? Math.round((d.temp + rnd() * 2) * 10) / 10 : null, make: d.make, model: d.model, soc: d.soc, os: d.os, kernel: d.kernel, arch: d.arch,
+        cores: d.cores, ramMB: d.ramMB, batteryTemp: on && d.bat ? Math.round((d.bat + rnd()) * 10) / 10 : null, batteryLevel: on ? d.lvl : null,
+        charging: d.lvl ? 'Charging' : null, load: on ? d.cores - rnd() * 0.3 : null, deviceUptime: null, agentSeen: now
+      };
+    });
+    const on = workers.filter(w => w.status !== 'offline'), temps = on.map(w => w.cpuTemp).filter(Boolean);
+    return {
+      time: now, startedAt: now0 - 5.2 * 86400e3, pool: 'na.luckpool.net:3958', hashrateWindowSec: 600, poolConnections: [],
+      totals: {
+        effHashrate: workers.reduce((a, w) => a + w.effHashrate, 0), repHashrate: workers.reduce((a, w) => a + (w.repHashrate || 0), 0),
+        online: on.length, offline: workers.length - on.length, stale: workers.filter(w => w.status === 'stale').length, devices: workers.length,
+        accepted: workers.reduce((a, w) => a + w.accepted, 0), rejected: workers.reduce((a, w) => a + w.rejected, 0),
+        avgTemp: temps.reduce((a, b) => a + b, 0) / temps.length, maxTemp: Math.max(...temps)
+      },
+      workers
+    };
+  }
+  function history(range, metric) {
+    const sec = { '1h': 3600, '6h': 21600, '24h': 86400, '7d': 604800, '30d': 2592000 }[range];
+    const n = Math.min(360, sec / 60), step = sec * 1000 / n, now = Date.now();
+    const t = [], workers = {};
+    devs.forEach(d => workers[d.name] = []);
+    for (let i = 0; i <= n; i++) {
+      const ts = now - sec * 1000 + i * step; t.push(ts);
+      devs.forEach((d, k) => {
+        let v = ts < d.born ? null : wobble(d, ts);
+        if (d.status === 'offline' && ts > now - (k === 4 ? 3 : 40) * 3600e3) v = null;
+        if (d.status === 'stale' && ts > now - 9 * 60e3) v = null;
+        if (v !== null && Math.sin(ts / 9e6 + k * 2) > 0.985) v = null; // occasional dropouts
+        if (v !== null && metric === 'eff') v *= 0.8 + 0.4 * Math.abs(Math.sin(ts / 7e5 + k));
+        workers[d.name].push(v === null ? (metric === 'eff' ? 0 : null) : Math.round(v));
+      });
+    }
+    const total = t.map((_, i) => devs.reduce((a, d) => a + (workers[d.name][i] || 0), 0));
+    return { metric, t, total, workers };
+  }
+  return { stats, history };
+})();
+
+// ---------- boot ----------
+renderColMenu();
+if (/[?&]demo\b/.test(location.search) || location.protocol === 'file:') startDemo();
+else { loadStats().then(() => { if (!state.demo) loadHistory(); }); }
+setInterval(() => { if (!state.demo) loadStats(); }, 10000);
+setInterval(() => { if (!state.demo) loadHistory(); }, 60000);
+})();
+</script>
+</body>
+</html>

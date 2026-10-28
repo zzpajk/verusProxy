@@ -1,17 +1,29 @@
 const cluster = require("cluster");
 const totalCPUs = require("os").cpus().length;
 const minerListener = require('./lib/miner_listener.js');
+const { FleetStats } = require('./lib/stats_master.js');
+const dashboard = require('./lib/dashboard_server.js');
 
 const config = require('./config.json');
 
-config.version = "0.1.4";
+config.version = "0.2.0";
 
 // TODO, stratumProxy/poolConnection engine (50%)
-//       api/stats engine (0%)
+//       api/stats engine (dashboard: lib/stats_master.js)
 //       validate config
 
 if (cluster.isMaster) {
     console.log(`VerusProxy v${config.version} by hellcatz`);
+
+    // fleet stats + web dashboard live in the master, fed by every worker thread
+    const stats = new FleetStats(config);
+    dashboard.start(config, stats);
+    let shutdown = function() {
+        stats.save();
+        process.exit(0);
+    };
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
     //console.log(`Master ${process.pid} is running`);
 
     let my_fork = function() {
@@ -19,6 +31,10 @@ if (cluster.isMaster) {
 
         // example fork inter-process communications
         worker.on('message', function(msg){
+            if (msg && msg.type === 'vp-stats') {
+                stats.onWorkerMessage(msg);
+                return;
+            }
             console.log('from worker:', msg);
             //worker.send({chat: "Master got worker message"});
         });
@@ -42,6 +58,7 @@ if (cluster.isMaster) {
     }
 
     cluster.on("exit", (worker, code, signal) => {
+        stats.onWorkerExit(worker.process.pid);
         console.log(`worker ${worker.process.pid} died, forking again`);
         my_fork();
     });

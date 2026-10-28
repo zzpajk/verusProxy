@@ -11,5 +11,21 @@
         "ssl" : true
  	},
     "wallet": false,
-    "password": false
+    "password": false,
+
+    "dashboard": {
+        "enabled": true,
+        "host": "0.0.0.0",
+        "port": 8080,
+        "auth": "",
+        "reportToken": "",
+        "hashrateWindowSec": 600,
+        "staleAfterSec": 300,
+        "forgetOfflineAfterDays": 14,
+        "dataDir": "data",
+        "ccminerApi": true,
+        "ccminerApiPort": 4068,
+        "ccminerPollSec": 30,
+        "ccminerHosts": []
+    }
 }
