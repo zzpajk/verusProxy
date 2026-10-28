@@ -1,0 +1,22 @@
+# /etc/systemd/system/verusproxy.service
+# Edit User and the paths, then:  sudo systemctl daemon-reload && sudo systemctl enable --now verusproxy
+[Unit]
+Description=verusProxy stratum proxy + fleet dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/verusProxy
+ExecStart=/usr/bin/node /home/pi/verusProxy/proxy.js
+Restart=always
+RestartSec=5
+# saves stats and pool state on stop
+KillSignal=SIGTERM
+TimeoutStopSec=15
+# the proxy can have thousands of miner connections
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,11 @@
+# /etc/systemd/system/verusproxy-watchdog.timer
+# Enable with:  sudo systemctl enable --now verusproxy-watchdog.timer
+[Unit]
+Description=Check verusProxy health every minute
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=1min
+
+[Install]
+WantedBy=timers.target

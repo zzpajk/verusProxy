@@ -159,9 +159,24 @@ Pool control only works when `dashboard.auth` is set (it moves all your hashrate
 
 **The proxy itself is still a single point of failure.** Give ccminer on each device a second pool that goes straight to a real pool, so devices keep mining if the proxy machine is down.
 
+# Run at boot and restart when stalled (Linux / systemd)
+
+Service files are in `deploy/`. Edit `User=` and the paths in `verusproxy.service` (the example assumes user `pi` and `/home/pi/verusProxy`; `which node` shows the node path), then:
+
+```
+sudo cp deploy/verusproxy*.service deploy/verusproxy-watchdog.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now verusproxy
+sudo systemctl enable --now verusproxy-watchdog.timer
+```
+
+- **Starts at boot, restarts on crash** (`Restart=always`). Inside, the proxy already re-forks a crashed stratum worker by itself.
+- **Restarts when stalled:** every minute the watchdog calls `GET /api/health`, which returns 503 when a stratum worker process has stopped checking in (they report every 5 s). Two failures 20 s apart → `systemctl restart verusproxy`. It needs the dashboard enabled; if you changed `dashboard.port`, change 8080 in the watchdog too.
+- Logs: `journalctl -u verusproxy -f` (watchdog restarts: `journalctl -u verusproxy-watchdog`).
+
 ### API
 
-`GET /api/stats`, `GET /api/history?range=1h|6h|24h|7d|30d&metric=rep|eff`, `GET /api/pools`, `POST /api/report`, `POST /api/forget {"worker": "..."}`.
+`GET /api/health`, `GET /api/stats`, `GET /api/history?range=1h|6h|24h|7d|30d&metric=rep|eff`, `GET /api/pools`, `POST /api/report`, `POST /api/forget {"worker": "..."}`.
 Pool control (needs `dashboard.auth` and header `X-VP-Control: 1`): `POST /api/pools/switch {"index": 1}`, `POST /api/pools/auto {"enabled": true}`, `POST /api/pools/reset-preferred`.
 
 The dashboard is meant for your LAN. If you expose it to the internet, set `auth` and put it behind HTTPS.
