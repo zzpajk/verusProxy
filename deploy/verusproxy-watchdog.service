@@ -1,8 +1,10 @@
 # /etc/systemd/system/verusproxy-watchdog.service
-# Restarts verusProxy if it is running but stalled (/api/health fails twice, 20 s apart).
+# Restarts verusProxy if it is running but stalled (health check fails twice, 20 s apart).
+# Edit the path if verusProxy isn't in /home/pi/verusProxy.
 [Unit]
 Description=Restart verusProxy if stalled
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c 'curl -fsS -m 10 -o /dev/null http://127.0.0.1:8080/api/health || { sleep 20; curl -fsS -m 10 -o /dev/null http://127.0.0.1:8080/api/health; } || { echo "verusProxy stalled, restarting"; systemctl restart verusproxy; }'
+WorkingDirectory=/home/pi/verusProxy
+ExecStart=/bin/sh -c 'node deploy/healthcheck.js || { sleep 20; node deploy/healthcheck.js; } || { echo "verusProxy stalled, restarting"; systemctl restart verusproxy; }'

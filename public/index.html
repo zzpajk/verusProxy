@@ -148,9 +148,16 @@ input[type=checkbox] { accent-color: var(--s1); width: 15px; height: 15px; margi
 .colmenu .panel {
   position: absolute; right: 12px; bottom: 50px; z-index: 10; background: var(--surface); border-radius: 10px;
   box-shadow: 0 0 0 1px var(--ring), 0 8px 24px rgba(0,0,0,.14); padding: 8px; display: none; width: 210px;
-  max-height: 360px; overflow: auto;
+  max-height: min(460px, 70vh); overflow: auto;
 }
 .colmenu.open .panel { display: block; }
+th.dragging { opacity: .4; }
+th.drop-l { box-shadow: inset 2px 0 0 var(--s1); }
+th.drop-r { box-shadow: inset -2px 0 0 var(--s1); }
+.col-hint { color: var(--muted); font-size: 12px; padding: 2px 6px 6px; }
+.col-row { display: flex; align-items: center; gap: 2px; }
+.col-row label { flex: 1; }
+.col-row .linkbtn:disabled { opacity: .3; cursor: default; }
 .colmenu label { display: flex; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 6px; font-size: 13px; cursor: pointer; }
 .colmenu label:hover { background: var(--wash); }
 .note { color: var(--muted); font-size: 12.5px; margin-top: 12px; }
@@ -302,6 +309,7 @@ select.gsel.none { color: var(--muted); }
     <div class="ssh-setup" id="sshSetup" hidden></div>
     <div class="ssh-form">
       <select id="sshTarget" aria-label="Devices to run on"></select>
+      <select id="sshPort" aria-label="SSH port" hidden></select>
       <input id="sshCmd" class="mono" placeholder="Command to run in Termux, e.g. uptime" aria-label="Command" autocomplete="off" spellcheck="false">
       <button class="btn" id="sshRun">Run</button>
     </div>
@@ -358,6 +366,7 @@ const state = {
   plotted: store.get('plotted', []),
   showTotals: store.get('showTotals', true),
   theme: store.get('theme', 'auto'),
+  colOrder: store.get('colOrder', null),
   hiddenCols: store.get('hiddenCols', ['address','kernel','arch','ram','load','ping','freq','firstSeen','minerShares','threads']),
   stats: null, history: null, demo: false, lastOk: 0
 };
@@ -398,7 +407,29 @@ const COLS = [
   { key: 'action', label: '', nosort: true, fixed: true }
 ];
 
-function visibleCols() { return COLS.filter(c => c.fixed || !state.hiddenCols.includes(c.key)); }
+// columns in the viewer's order (saved per browser); the tick box stays first and the actions last
+const PINNED_FIRST = 'plot', PINNED_LAST = 'action';
+function orderedCols() {
+  const movable = COLS.filter(c => c.key !== PINNED_FIRST && c.key !== PINNED_LAST);
+  const order = (state.colOrder || []).filter(k => movable.some(c => c.key === k));
+  // columns added in a later version go after the column they follow by default
+  for (const c of movable) {
+    if (order.includes(c.key)) continue;
+    const i = movable.indexOf(c);
+    const prev = i > 0 ? order.indexOf(movable[i - 1].key) : -1;
+    order.splice(prev + 1, 0, c.key);
+  }
+  return [COLS.find(c => c.key === PINNED_FIRST), ...order.map(k => COLS.find(c => c.key === k)), COLS.find(c => c.key === PINNED_LAST)];
+}
+function moveCol(key, toKey, after) {
+  const order = orderedCols().map(c => c.key).filter(k => k !== PINNED_FIRST && k !== PINNED_LAST && k !== key);
+  let i = order.indexOf(toKey);
+  if (i < 0) i = order.length; else if (after) i++;
+  order.splice(i, 0, key);
+  state.colOrder = order; store.set('colOrder', order);
+  renderTable(); renderColMenu();
+}
+function visibleCols() { return orderedCols().filter(c => c.fixed || !state.hiddenCols.includes(c.key)); }
 
 // ---------- filtering ----------
 function filters() {
@@ -472,6 +503,7 @@ function renderKpis() {
   $('kTempSub').textContent = hot ? 'Hottest ' + hot.name + ' at ' + hot.cpuTemp.toFixed(0) + ' °C' : 'No temperature data yet';
 
   $('poolInfo').textContent = s.pool ? 'Mining on ' + s.pool + ' · proxy up ' + fmtDur((now - s.startedAt) / 1000) : '';
+  if (s.stratumLagSec > 15) $('poolInfo').textContent += ' · ⚠ no update from the stratum process for ' + s.stratumLagSec + ' s, statuses may be out of date';
 }
 
 // ---------- table ----------
@@ -512,6 +544,25 @@ function renderHead() {
       th.addEventListener('click', () => {
         state.sort = { key: c.key, dir: state.sort.key === c.key ? -state.sort.dir : (c.num ? -1 : 1) };
         store.set('sort', state.sort); renderTable();
+      });
+    }
+    // drag a column header onto another to move it
+    if (c.key !== PINNED_FIRST && c.key !== PINNED_LAST) {
+      th.draggable = true;
+      th.title = 'Click to sort · drag to move';
+      th.addEventListener('dragstart', (e) => { state.dragCol = c.key; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', c.key); } catch (x) {} th.classList.add('dragging'); });
+      th.addEventListener('dragend', () => { state.dragCol = null; th.classList.remove('dragging'); document.querySelectorAll('th.drop-l, th.drop-r').forEach(x => x.classList.remove('drop-l', 'drop-r')); });
+      th.addEventListener('dragover', (e) => {
+        if (!state.dragCol || state.dragCol === c.key) return;
+        e.preventDefault();
+        const r = th.getBoundingClientRect(), after = e.clientX > r.left + r.width / 2;
+        th.classList.toggle('drop-r', after); th.classList.toggle('drop-l', !after);
+      });
+      th.addEventListener('dragleave', () => th.classList.remove('drop-l', 'drop-r'));
+      th.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const r = th.getBoundingClientRect(), after = e.clientX > r.left + r.width / 2;
+        if (state.dragCol && state.dragCol !== c.key) moveCol(state.dragCol, c.key, after);
       });
     }
     tr.appendChild(th);
@@ -630,17 +681,32 @@ function renderTable() {
 
 function renderColMenu() {
   const p = $('colPanel'); p.textContent = '';
-  for (const c of COLS) {
-    if (c.fixed) continue;
+  const hint = document.createElement('div'); hint.className = 'col-hint'; hint.textContent = 'Tick to show · arrows or drag a header to move';
+  p.appendChild(hint);
+  const cols = orderedCols().filter(c => c.key !== PINNED_FIRST && c.key !== PINNED_LAST);
+  cols.forEach((c, i) => {
+    const row = document.createElement('div'); row.className = 'col-row';
     const l = document.createElement('label');
-    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !state.hiddenCols.includes(c.key);
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = c.fixed || !state.hiddenCols.includes(c.key);
+    cb.disabled = !!c.fixed;
     cb.addEventListener('change', () => {
       state.hiddenCols = cb.checked ? state.hiddenCols.filter(k => k !== c.key) : state.hiddenCols.concat(c.key);
       store.set('hiddenCols', state.hiddenCols); renderTable();
     });
     l.appendChild(cb); l.appendChild(document.createTextNode(c.label));
-    p.appendChild(l);
-  }
+    const up = document.createElement('button'); up.className = 'linkbtn'; up.textContent = '↑'; up.disabled = i === 0;
+    up.setAttribute('aria-label', 'Move ' + c.label + ' left');
+    up.addEventListener('click', (e) => { e.stopPropagation(); moveCol(c.key, cols[i - 1].key, false); });
+    const dn = document.createElement('button'); dn.className = 'linkbtn'; dn.textContent = '↓'; dn.disabled = i === cols.length - 1;
+    dn.setAttribute('aria-label', 'Move ' + c.label + ' right');
+    dn.addEventListener('click', (e) => { e.stopPropagation(); moveCol(c.key, cols[i + 1].key, true); });
+    row.append(l, up, dn);
+    p.appendChild(row);
+  });
+  const reset = document.createElement('button'); reset.className = 'btn small'; reset.textContent = 'Reset order';
+  reset.style.marginTop = '6px';
+  reset.addEventListener('click', (e) => { e.stopPropagation(); state.colOrder = null; store.set('colOrder', null); renderTable(); renderColMenu(); });
+  p.appendChild(reset);
 }
 
 // ---------- groups ----------
@@ -1140,7 +1206,18 @@ function renderSsh() {
   const first = $('sshCard').hidden;
   $('sshCard').hidden = false;
   if (first && state.stats) renderTable();   // adds the SSH buttons to the rows
-  $('sshHint').textContent = 'Runs over SSH as ' + ss.user + '@device:' + ss.port + ' · ' + (ss.authMode === 'password' ? 'password login' : 'key login') +
+  // port choice (from ssh.ports); each port can have its own login
+  const ps = $('sshPort'), ports = ss.ports || [{ port: ss.port, user: ss.user, authMode: ss.authMode }];
+  const portSig = JSON.stringify(ports);
+  if (ps.dataset.sig !== portSig) {
+    const cur = Number(ps.value) || state.sshPortPick || ss.port;
+    ps.dataset.sig = portSig; ps.textContent = '';
+    for (const e of ports) { const o = document.createElement('option'); o.value = e.port; o.textContent = 'Port ' + e.port + (e.name ? ' · ' + e.name : ''); ps.appendChild(o); }
+    ps.value = ports.some(e => e.port === cur) ? cur : ss.port;
+  }
+  ps.hidden = ports.length < 2;
+  const pe = ports.find(e => e.port === Number(ps.value)) || ports[0];
+  $('sshHint').textContent = 'Runs over SSH as ' + pe.user + '@device:' + pe.port + ' · ' + (pe.authMode === 'password' ? 'password login' : 'key login') +
     (ss.hostKeyCheck === 'off' ? ' · host keys not checked' : '') + ' · stops after ' + ss.timeoutSec + ' s' + (ss.allowCustom ? '' : ' · saved commands only');
   $('sshCmd').readOnly = !ss.allowCustom;
   $('sshCmd').placeholder = ss.allowCustom ? 'Command to run in Termux, e.g. uptime' : 'Pick a saved command below';
@@ -1214,11 +1291,11 @@ function renderSshRuns() {
 function renderRunBody(run) {
   const body = document.createElement('div'); body.className = 'run-body';
   const tools = document.createElement('div'); tools.className = 'run-tools';
-  tools.appendChild(document.createTextNode((run.by ? 'Run by ' + run.by + ' · ' : '') + run.targets.length + ' device' + (run.targets.length === 1 ? '' : 's')));
+  tools.appendChild(document.createTextNode((run.by ? 'Run by ' + run.by + ' · ' : '') + run.targets.length + ' device' + (run.targets.length === 1 ? '' : 's') + (run.port ? ' · port ' + run.port : '')));
   const failed = run.targets.filter(t => t.state !== 'ok' && t.state !== 'running' && t.state !== 'queued').map(t => t.name);
   if (failed.length && run.summary.done) {
     const b = document.createElement('button'); b.className = 'btn small'; b.textContent = 'Retry ' + failed.length + ' failed';
-    b.addEventListener('click', (e) => { e.stopPropagation(); sshRun(failed, run.command, run.preset); });
+    b.addEventListener('click', (e) => { e.stopPropagation(); sshRun(failed, run.command, run.preset, run.port); });
     tools.appendChild(b);
   }
   const again = document.createElement('button'); again.className = 'btn small'; again.textContent = 'Use command';
@@ -1250,12 +1327,14 @@ async function loadSshRun(id) {
   try { state.sshFull[id] = state.demo ? Demo.sshGet(id) : await getJSON('api/ssh/run?id=' + encodeURIComponent(id)); } catch (e) {}
   renderSshRuns();
 }
-async function sshRun(names, command, preset) {
+async function sshRun(names, command, preset, port) {
   if (!names.length) { alert('No devices selected.'); return; }
   if (!command.trim()) { alert('Type a command first.'); return; }
   const list = names.length <= 8 ? names.join(', ') : names.slice(0, 8).join(', ') + ' and ' + (names.length - 8) + ' more';
-  if (!confirm('Run on ' + names.length + ' device' + (names.length === 1 ? '' : 's') + ' (' + list + '):\n\n' + command)) return;
+  const portNote = port && state.ssh.ports && state.ssh.ports.length > 1 ? ' on port ' + port : '';
+  if (!confirm('Run on ' + names.length + ' device' + (names.length === 1 ? '' : 's') + portNote + ' (' + list + '):\n\n' + command)) return;
   const body = { workers: names };
+  if (port) body.port = port;
   if (preset && state.ssh.presets.some(p => p.name === preset && p.command === command)) body.preset = preset; else body.command = command;
   let res;
   try {
@@ -1282,9 +1361,11 @@ function sshPoll() {
     sshPoll();
   }, 1200);
 }
-$('sshRun').addEventListener('click', () => sshRun(sshTargets(), $('sshCmd').value, state.sshPreset));
+$('sshRun').addEventListener('click', () => sshRun(sshTargets(), $('sshCmd').value, state.sshPreset, Number($('sshPort').value) || null));
 $('sshCmd').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('sshRun').click(); });
 $('sshCmd').addEventListener('input', () => { if (state.sshPreset) { state.sshPreset = null; renderSsh(); } });
+$('sshPort').addEventListener('change', () => { state.sshPortPick = Number($('sshPort').value); store.set('sshPort', state.sshPortPick); renderSsh(); });
+state.sshPortPick = store.get('sshPort', null);
 $('sshSetupBtn').addEventListener('click', () => { $('sshSetup').hidden = !$('sshSetup').hidden; });
 
 // ---------- data ----------

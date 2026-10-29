@@ -27,6 +27,7 @@
         "enabled": false,
         "user": "eek",
         "port": 8022,
+        "ports": [],
         "identityFile": "",
         "password": "",
         "hostKeyCheck": "accept-new",

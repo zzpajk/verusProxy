@@ -91,7 +91,7 @@ if (cluster.isMaster) {
     cluster.on("exit", (worker, code, signal) => {
         stats.onWorkerExit(worker.process.pid);
         pools.onWorkerExit(worker.process.pid);
-        console.log(`worker ${worker.process.pid} died, forking again`);
+        console.log(`worker ${worker.process.pid} died (exit code ${code}${signal ? ', signal ' + signal : ''}), forking again: all miners will reconnect`);
         my_fork();
     });
 

@@ -89,7 +89,7 @@ The proxy now has a built-in web dashboard for all devices mining through it.
 Open `http://<proxy-ip>:8080/` (port set by `dashboard.port`).
 
 - **Hashrate chart** – fleet total, the total of whatever the filters select, and up to 6 individual devices (tick them in the table, or press *Plot filtered devices*). Ranges 1h / 6h / 24h / 7d / 30d. Toggle between **device-reported** (ccminer's own number) and **pool-side** (calculated from accepted shares × share difficulty — what the pool actually credits).
-- **Device table** – sort by any column, search, filter by status / make / system / temperature, choose columns. Shows make, model, SoC, Android/OS version, kernel, cores, CPU MHz, CPU temp, battery temp/level, reported & pool-side hashrate, hashrate per core, shares, reject %, miner version, IP, uptime, last share.
+- **Device table** – drag column headers (or use the arrows under *Columns*) to reorder, sort by any column, search, filter by status / make / system / temperature, choose columns. Shows make, model, SoC, Android/OS version, kernel, cores, CPU MHz, CPU temp, battery temp/level, reported & pool-side hashrate, hashrate per core, shares, reject %, miner version, IP, uptime, last share.
 - Offline devices stay in the table so you notice dead phones (auto-removed after 14 days, or press *Forget*).
 - History is kept for 24h at 1-minute resolution and 30 days at 15-minute resolution, saved to `data/stats.json` so it survives restarts.
 
@@ -236,6 +236,8 @@ Statuses in the device table:
 | Mining elsewhere | not connected, but its ccminer API answers and says it's on another pool (usually its backup pool) — hover for the pool |
 | Offline | not connected and ccminer not reachable |
 
+If *every* device shows Reconnecting at the same moment, the proxy restarted or its stratum process did. `journalctl -u verusproxy` then shows `worker … died (exit code …)` or a fresh `VerusProxy v…` start line, and `journalctl -u verusproxy-watchdog` shows watchdog restarts. A delayed internal update no longer flips devices to Reconnecting; the dashboard header shows a warning instead.
+
 For a backup pool in ccminer's own config, add `"time-limit": 900` to the backup entry so ccminer returns to the proxy after 15 minutes instead of staying on the backup until it fails. (`"timeout"` is a global ccminer option, not a per-pool one.)
 
 # Remote commands (SSH)
@@ -257,6 +259,7 @@ Then use the **Remote commands** panel below the device table: pick the devices 
 | `user`, `port` | `eek`, `8022` | Termux sshd |
 | `identityFile` | `""` | private key to use; empty = the proxy user's `~/.ssh/id_ed25519` (or ecdsa/rsa) |
 | `password` | `""` | log in with this Termux password instead of a key (same password on every device). Keys are still tried first |
+| `ports` | `[]` | more ports to choose from in the panel, e.g. `[2022]` or `[{ "port": 2022, "name": "Ubuntu", "user": "root", "password": "..." }]`; a port's own `user`/`password` replace the global ones |
 | `hostKeyCheck` | `"accept-new"` | `"off"` = accept any device's host key and remember nothing |
 | `timeoutSec` | `60` | a device's command is stopped after this |
 | `parallel` | `10` | devices worked on at the same time |
@@ -264,6 +267,12 @@ Then use the **Remote commands** panel below the device table: pick the devices 
 | `presets` | uptime, ccminer running?, battery, disk & memory, stop ccminer | `{ "name": "...", "command": "..." }` buttons |
 
 A useful preset to add, with your own start command: `{ "name": "Restart ccminer", "command": "pkill -f ccminer; sleep 2; cd ~/ccminer && nohup ./ccminer -c config.json > miner.log 2>&1 & echo restarted" }`. Anything that should keep running after the command returns needs `nohup … &` like this, otherwise it stops when the SSH session closes.
+
+**Several SSH servers / ports.** If devices also run SSH on another port (for example a Linux distro inside Termux on 2022), list it in `ports` and pick the port next to the command box; the panel shows which user it logs in as. Only listed ports can be used. Each port gets its own host-key entry, so two servers on one phone don't trip "host key changed".
+
+```json
+"ssh": { "enabled": true, "password": "termux-pw", "ports": [ { "port": 8022, "name": "Termux" }, { "port": 2022, "name": "Ubuntu", "user": "root", "password": "ubuntu-pw" } ] }
+```
 
 **Password login, no host key checks (trusted LAN only).** If you'd rather skip the key setup:
 
@@ -292,7 +301,8 @@ sudo systemctl enable --now verusproxy-watchdog.timer
 ```
 
 - **Starts at boot, restarts on crash** (`Restart=always`). Inside, the proxy already re-forks a crashed stratum worker by itself.
-- **Restarts when stalled:** every minute the watchdog calls `GET /api/health`, which returns 503 when a stratum worker process has stopped checking in (they report every 5 s). Two failures 20 s apart → `systemctl restart verusproxy`. It needs the dashboard enabled; if you changed `dashboard.port`, change 8080 in the watchdog too.
+- **Restarts when stalled:** the watchdog runs `node deploy/healthcheck.js`, which reads the dashboard port from your settings. (Older copies of the watchdog checked port 8080 only; if you changed `dashboard.port`, they restarted the proxy every couple of minutes. Copy the new `deploy/verusproxy-watchdog.service` to `/etc/systemd/system/` and run `sudo systemctl daemon-reload`.)
+- **What it checks:** every minute the watchdog calls `GET /api/health`, which returns 503 when a stratum worker process has stopped checking in (they report every 5 s). Two failures 20 s apart → `systemctl restart verusproxy`. It needs the dashboard enabled; if you changed `dashboard.port`, change 8080 in the watchdog too.
 - Logs: `journalctl -u verusproxy -f` (watchdog restarts: `journalctl -u verusproxy-watchdog`).
 
 ### API
