@@ -928,11 +928,11 @@ function renderPools() {
   const at = $('autoToggle');
   at.setAttribute('aria-checked', String(ps.auto));
   at.disabled = !control;
-  at.title = control ? '' : 'Set dashboard.auth in config.json to enable pool control';
+  at.title = control ? '' : 'Set dashboard.auth in config.local.json to enable pool control';
   const pref = ps.pools[ps.preferred];
   $('resetPreferred').hidden = !control || ps.pinned === null || ps.pinned === 0;
   $('poolsHint').textContent = !control
-    ? 'Read-only: set dashboard.auth in config.json to enable switching.'
+    ? 'Read-only: set dashboard.auth in config.local.json to enable switching.'
     : ps.auto
       ? (ps.failback ? 'Fails over when a pool stops answering; returns to ' + pref.name + ' after it has been healthy ' + Math.round(ps.failbackAfterSec / 60) + ' min.' : 'Fails over when a pool stops answering; no automatic return.')
       : 'Auto failover is off: the proxy stays on the active pool even if it goes down.';
@@ -964,7 +964,7 @@ function renderPools() {
     if (!isActive) {
       const b = document.createElement('button'); b.className = 'btn small'; b.textContent = 'Switch here';
       b.disabled = !control;
-      if (!control) b.title = 'Set dashboard.auth in config.json to enable pool control';
+      if (!control) b.title = 'Set dashboard.auth in config.local.json to enable pool control';
       b.addEventListener('click', () => {
         if (!confirm('Move all devices to ' + p.name + '?' + (p.status === 'down' ? '\n\nThis pool currently looks DOWN.' : '') + (ps.auto ? '\n\nIt becomes the preferred pool; failover still protects you if it stops answering.' : ''))) return;
         poolAction('switch', { index: p.index });

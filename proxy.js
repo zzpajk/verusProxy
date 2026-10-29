@@ -6,7 +6,14 @@ const dashboard = require('./lib/dashboard_server.js');
 const { PoolManager } = require('./lib/pool_manager.js');
 const poolSelect = require('./lib/pool_select.js');
 
-const config = require('./config.json');
+// defaults from config.json, your settings from config.local.json (see lib/config.js)
+let config;
+try {
+    config = require('./lib/config.js').load();
+} catch (e) {
+    console.error('Settings error:', e.message);
+    process.exit(1);
+}
 
 config.version = "0.3.0";
 

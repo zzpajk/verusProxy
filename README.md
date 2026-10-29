@@ -10,6 +10,35 @@ If the pool connection is lost, a new extra nonce will be assigned by the pool a
     cd verusProxy
     npm install
 
+## Your settings: config.local.json
+
+`config.json` holds the defaults and is updated by `git pull`; **don't edit it**. Put your own settings in **`config.local.json`** next to it (git never touches that file). It only needs what you change; everything else comes from the defaults. For example:
+
+```json
+{
+    "pools": [
+        { "name": "luckpool NA", "host": "na.luckpool.net", "port": 3958, "ssl": true },
+        { "name": "luckpool NA (tcp)", "host": "na.luckpool.net", "port": 3956, "ssl": false }
+    ],
+    "wallet": "RYourAddress",
+    "dashboard": { "auth": "me:a-long-password" }
+}
+```
+
+Objects like `dashboard` merge with the defaults key by key; lists like `pools` replace the default list. The setting names below are the same in either file.
+
+**Moving from an edited config.json** (once, if `git pull` complains about config.json):
+
+```
+cp config.json ~/verusproxy-config-backup.json
+git checkout -- config.json
+git pull
+node deploy/move-settings.js ~/verusproxy-config-backup.json
+sudo systemctl restart verusproxy
+```
+
+`move-settings.js` writes only the settings that differ from the defaults into `config.local.json` and shows them.
+
 ## Modify config.js
 
 ### Proxy Setup
@@ -57,7 +86,7 @@ Optionally, you may force all miners to use the specified proxy wallet.
 
 The proxy now has a built-in web dashboard for all devices mining through it.
 
-Open `http://<proxy-ip>:8080/` (port set in `config.json` → `dashboard.port`).
+Open `http://<proxy-ip>:8080/` (port set by `dashboard.port`).
 
 - **Hashrate chart** – fleet total, the total of whatever the filters select, and up to 6 individual devices (tick them in the table, or press *Plot filtered devices*). Ranges 1h / 6h / 24h / 7d / 30d. Toggle between **device-reported** (ccminer's own number) and **pool-side** (calculated from accepted shares × share difficulty — what the pool actually credits).
 - **Device table** – sort by any column, search, filter by status / make / system / temperature, choose columns. Shows make, model, SoC, Android/OS version, kernel, cores, CPU MHz, CPU temp, battery temp/level, reported & pool-side hashrate, hashrate per core, shares, reject %, miner version, IP, uptime, last share.
@@ -115,7 +144,7 @@ Linux boards (Raspberry Pi, Orange Pi, …): same script, run it from `crontab -
 
 Options (environment variables): `WORKER=phone01` (otherwise taken from ccminer's login), `TOKEN=...`, `CCMINER_API=127.0.0.1:4068`, `INTERVAL=30`. Test with `ONCE=1 ./agent.sh` — it prints the report instead of sending it.
 
-### Dashboard settings (`config.json` → `dashboard`)
+### Dashboard settings (`dashboard` in config.local.json)
 
 | key | default | |
 |---|---|---|
@@ -167,7 +196,7 @@ Time since the last block or job is **never** a reason to switch — Verus block
 - **Auto failover** on/off.
 - **Use priority order** — clears the preferred pool so #1 is preferred again.
 
-Pool control only works when `dashboard.auth` is set (it moves all your hashrate, so it must not be open to the whole LAN), and it can only switch between pools listed in `config.json` — never to an address typed into the page. Requests also need a custom header and must come from the dashboard's own origin, so another website open in your browser can't trigger a switch using your saved login. The preferred pool and the on/off setting are kept in `data/pools.json` across restarts (the saved preferred pool is ignored if you edit the pool list).
+Pool control only works when `dashboard.auth` is set (it moves all your hashrate, so it must not be open to the whole LAN), and it can only switch between pools listed in your settings — never to an address typed into the page. Requests also need a custom header and must come from the dashboard's own origin, so another website open in your browser can't trigger a switch using your saved login. The preferred pool and the on/off setting are kept in `data/pools.json` across restarts (the saved preferred pool is ignored if you edit the pool list).
 
 **The proxy itself is still a single point of failure.** Give ccminer on each device a second pool that goes straight to a real pool, so devices keep mining if the proxy machine is down.
 
@@ -196,7 +225,7 @@ Run shell commands on one device, a group, or every device shown in the table, f
 **It is off by default**, because it gives anyone who can use the dashboard a shell on every phone. To turn it on:
 
 1. Set a dashboard login, `"dashboard": { "auth": "user:a-long-password" }`. Remote commands refuse to work without one.
-2. Set `"ssh": { "enabled": true }` in `config.json` and restart the proxy.
+2. Set `"ssh": { "enabled": true }` in `config.local.json` and restart the proxy.
 3. On each phone in Termux: `pkg install openssh`, `passwd` (set a password), `sshd`. To start sshd with the phone, add `sshd` to `~/.termux/boot/` (Termux:Boot app).
 4. On the proxy machine, **as the user the proxy runs as** (e.g. `pi`): `./deploy/ssh-copy-key.sh`. It creates an SSH key if there is none and installs it on every device the dashboard knows, asking each device's Termux password once. Pass IP addresses to do only some devices. The dashboard's *Setup* button also shows the public key and a one-liner to paste in Termux.
 

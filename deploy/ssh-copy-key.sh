@@ -9,7 +9,7 @@
 set -u
 cd "$(dirname "$0")/.." || exit 1
 
-cfg() { node -e "const c=require('./config.json'); const v=($1); process.stdout.write(v===undefined||v===null?'':String(v))"; }
+cfg() { node -e "const c=require('./lib/config.js').load(); const v=($1); process.stdout.write(v===undefined||v===null?'':String(v))"; }
 USER_NAME=$(cfg "(c.ssh||{}).user||'eek'")
 PORT=$(cfg "(c.ssh||{}).port||8022")
 KEY=$(cfg "(c.ssh||{}).identityFile||''")
