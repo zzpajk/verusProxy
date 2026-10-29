@@ -64,6 +64,18 @@ Open `http://<proxy-ip>:8080/` (port set in `config.json` → `dashboard.port`).
 - Offline devices stay in the table so you notice dead phones (auto-removed after 14 days, or press *Forget*).
 - History is kept for 24h at 1-minute resolution and 30 days at 15-minute resolution, saved to `data/stats.json` so it survives restarts.
 
+## Device groups
+
+Put devices in groups (a shelf, a room, a batch of phones…) to filter and chart them together. Each device is in at most one group, so group totals never double count. Groups are stored on the proxy in `data/groups.json`, so they survive restarts and are the same in every browser.
+
+- **One device:** pick a group in its *Group* column, or *New group…*.
+- **Many at once:** filter the table (e.g. make = Samsung), open **Groups** at the bottom of the table and *Move the N devices shown to* a group.
+- **Groups menu:** each group's devices online and total hashrate; tick a group to plot its total; *Show* filters the table to it; *Rename* (renaming onto an existing name merges the two); *Delete* (the devices stay, just without a group).
+- **Chart:** *Plot groups* draws one line per group (up to 6). A group line adds up its *current* members' history, so moving a device into a group also moves its past into that line.
+- The group filter also has *No group*, to find devices you haven't sorted yet.
+
+Devices are matched by worker name, so keep names unique and stable. Anyone who can open the dashboard can edit groups; set `dashboard.auth` if that should be restricted.
+
 ## Where the data comes from
 
 | Source | Gives | Setup |
