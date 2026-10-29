@@ -138,14 +138,15 @@ td .dim { color: var(--muted); }
 .status i, .temp i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
 .temp { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
 .forget { font: inherit; font-size: 12px; color: var(--ink-2); background: none; border: 0; cursor: pointer; text-decoration: underline; padding: 0; }
-.table-foot { display: flex; align-items: center; gap: 12px; padding: 10px 12px; color: var(--muted); font-size: 12.5px; }
+.table-foot { position: relative; display: flex; align-items: center; gap: 8px; padding: 10px 12px; color: var(--muted); font-size: 12.5px; }
 .table-foot > span { flex: 1; min-width: 0; }
 .table-foot .colmenu { flex: none; }
 input[type=checkbox] { accent-color: var(--s1); width: 15px; height: 15px; margin: 0; vertical-align: middle; cursor: pointer; }
 
-.colmenu { position: relative; }
+.colmenu { position: static; }
+/* menus open from the footer's right edge so they always stay on screen */
 .colmenu .panel {
-  position: absolute; right: 0; bottom: 38px; z-index: 10; background: var(--surface); border-radius: 10px;
+  position: absolute; right: 12px; bottom: 50px; z-index: 10; background: var(--surface); border-radius: 10px;
   box-shadow: 0 0 0 1px var(--ring), 0 8px 24px rgba(0,0,0,.14); padding: 8px; display: none; width: 210px;
   max-height: 360px; overflow: auto;
 }
@@ -153,6 +154,21 @@ input[type=checkbox] { accent-color: var(--s1); width: 15px; height: 15px; margi
 .colmenu label { display: flex; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 6px; font-size: 13px; cursor: pointer; }
 .colmenu label:hover { background: var(--wash); }
 .note { color: var(--muted); font-size: 12.5px; margin-top: 12px; }
+select.gsel { font: inherit; font-size: 13px; color: var(--ink); background: transparent; border: 0; border-radius: 6px;
+  padding: 3px 4px; max-width: 150px; cursor: pointer; }
+select.gsel:hover, select.gsel:focus { box-shadow: inset 0 0 0 1px var(--ring); background: var(--surface); }
+select.gsel.none { color: var(--muted); }
+.colmenu .panel.wide { width: min(360px, calc(100vw - 32px)); padding: 10px; }
+.gp-move { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 2px 2px 10px; border-bottom: 1px solid var(--grid); margin-bottom: 6px; color: var(--ink-2); font-size: 13px; }
+.gp-move select { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 0; box-shadow: inset 0 0 0 1px var(--ring); border-radius: 8px; height: 28px; padding: 0 6px; max-width: 170px; }
+.gp-row { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 10px; align-items: center; padding: 6px 4px; border-radius: 6px; }
+.gp-row:hover { background: var(--wash); }
+.gp-row .gname { font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gp-row .gmeta { grid-column: 2 / 4; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.gp-row .gact { display: flex; gap: 4px; }
+.gp-empty { color: var(--muted); font-size: 12.5px; padding: 6px 4px; }
+.linkbtn { font: inherit; font-size: 12px; color: var(--ink-2); background: none; border: 0; cursor: pointer; padding: 2px 4px; border-radius: 4px; }
+.linkbtn:hover { background: var(--wash); color: var(--ink); }
 </style>
 </head>
 <body>
@@ -202,6 +218,7 @@ input[type=checkbox] { accent-color: var(--s1); width: 15px; height: 15px; margi
     </div>
     <input type="search" id="q" placeholder="Search name, model, IP…" aria-label="Search devices">
     <select id="fStatus" aria-label="Status"><option value="">All statuses</option><option value="online">Online</option><option value="reconnecting">Reconnecting</option><option value="stale">No shares</option><option value="elsewhere">Mining elsewhere</option><option value="offline">Offline</option></select>
+    <select id="fGroup" aria-label="Group"><option value="">All groups</option></select>
     <select id="fMake" aria-label="Make"><option value="">All makes</option></select>
     <select id="fOs" aria-label="System"><option value="">All systems</option></select>
     <select id="fTemp" aria-label="Temperature"><option value="">Any temperature</option><option value="60">CPU ≥ 60 °C</option><option value="70">CPU ≥ 70 °C</option><option value="80">CPU ≥ 80 °C</option></select>
@@ -213,6 +230,7 @@ input[type=checkbox] { accent-color: var(--s1); width: 15px; height: 15px; margi
     <div class="chart-head">
       <h2 id="chartTitle">Hashrate</h2>
       <span class="spacer"></span>
+      <button class="btn" id="plotGroups" hidden title="Plot each group's total as its own line (up to 6)">Plot groups</button>
       <button class="btn" id="plotFiltered" title="Plot each filtered device as its own line (up to 6)">Plot filtered devices</button>
       <button class="btn" id="toggleTotals" hidden title="Hide the total lines so individual devices fill the chart">Hide totals</button>
       <button class="btn" id="clearPlot" hidden>Clear plotted</button>
@@ -225,6 +243,7 @@ input[type=checkbox] { accent-color: var(--s1); width: 15px; height: 15px; margi
     <div class="table-scroll"><table id="tbl"><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>
     <div class="table-foot">
       <span id="tableNote">Tick a device to plot it. Click a column to sort.</span>
+      <div class="colmenu" id="groupmenu"><button class="btn" id="groupBtn">Groups</button><div class="panel wide" id="groupPanel"></div></div>
       <div class="colmenu" id="colmenu"><button class="btn" id="colBtn">Columns</button><div class="panel" id="colPanel"></div></div>
     </div>
   </section>
@@ -288,6 +307,7 @@ const COLS = [
   { key: 'plot', label: '', nosort: true, fixed: true },
   { key: 'status', label: 'Status', val: w => ({ online: 0, reconnecting: 1, stale: 2, elsewhere: 3, offline: 4 })[w.status] },
   { key: 'name', label: 'Worker', val: w => w.name.toLowerCase(), fixed: true },
+  { key: 'group', label: 'Group', val: w => w.group ? w.group.toLowerCase() : null },
   { key: 'make', label: 'Make', val: w => (w.make || '').toLowerCase() },
   { key: 'model', label: 'Model', val: w => (w.model || '').toLowerCase() },
   { key: 'soc', label: 'SoC / CPU', val: w => (w.soc || '').toLowerCase() },
@@ -321,23 +341,40 @@ function visibleCols() { return COLS.filter(c => c.fixed || !state.hiddenCols.in
 
 // ---------- filtering ----------
 function filters() {
-  return { q: $('q').value.trim().toLowerCase(), status: $('fStatus').value, make: $('fMake').value, os: $('fOs').value, temp: Number($('fTemp').value) || 0 };
+  return { q: $('q').value.trim().toLowerCase(), status: $('fStatus').value, group: $('fGroup').value, make: $('fMake').value, os: $('fOs').value, temp: Number($('fTemp').value) || 0 };
 }
-function filterActive(f) { return !!(f.q || f.status || f.make || f.os || f.temp); }
+function filterActive(f) { return !!(f.q || f.status || f.group || f.make || f.os || f.temp); }
 function filtered() {
   if (!state.stats) return [];
   const f = filters();
   return state.stats.workers.filter(w => {
     if (f.status && w.status !== f.status) return false;
+    if (f.group === NO_GROUP ? !!w.group : (f.group && w.group !== f.group)) return false;
     if (f.make && (w.make || 'Unknown') !== f.make) return false;
     if (f.os && osFamily(w.os) !== f.os) return false;
     if (f.temp && !(w.cpuTemp >= f.temp)) return false;
     if (f.q) {
-      const hay = [w.name, w.make, w.model, w.soc, w.os, w.ip, w.software, w.address].join(' ').toLowerCase();
+      const hay = [w.name, w.group, w.make, w.model, w.soc, w.os, w.ip, w.software, w.address].join(' ').toLowerCase();
       if (!hay.includes(f.q)) return false;
     }
     return true;
   });
+}
+const NO_GROUP = '\u0000none';
+const NEW_GROUP = '\u0000new';
+function groupNames() { return state.stats && state.stats.groups ? state.stats.groups.map(g => g.name) : []; }
+function fillGroupFilter() {
+  const sel = $('fGroup'), cur = sel.value, names = groupNames();
+  const sig = names.join('|');
+  if (sel.dataset.sig === sig) return;
+  sel.dataset.sig = sig;
+  sel.textContent = '';
+  const add = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); };
+  add('', 'All groups');
+  for (const n of names) add(n, n);
+  add(NO_GROUP, 'No group');
+  sel.value = cur === '' || cur === NO_GROUP || names.includes(cur) ? cur : '';
+  sel.hidden = names.length === 0 && sel.value === '';
 }
 function osFamily(os) { if (!os) return 'Unknown'; const m = os.match(/^(Android \d+|[A-Za-z]+(?: [A-Za-z]+)?(?: \d+)?)/); return m ? m[1] : os; }
 
@@ -461,6 +498,11 @@ function renderTable() {
           if (w.connections > 1) { const s = document.createElement('span'); s.className = 'dim'; s.textContent = ' ×' + w.connections; td.appendChild(s); }
           break;
         }
+        case 'group': {
+          const td = cell(tr, '');
+          td.appendChild(groupSelect(w.group, (g) => groupAction('assign', { workers: [w.name], group: g }), 'Group for ' + w.name));
+          break;
+        }
         case 'make': cell(tr, w.make); break;
         case 'model': cell(tr, w.model); break;
         case 'soc': cell(tr, w.soc); break;
@@ -531,13 +573,129 @@ function renderColMenu() {
   }
 }
 
+// ---------- groups ----------
+function groupSelect(current, onPick, label) {
+  const sel = document.createElement('select');
+  sel.className = 'gsel' + (current ? '' : ' none');
+  sel.setAttribute('aria-label', label);
+  const add = (v, t) => { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); return o; };
+  add('', '—');
+  for (const n of groupNames()) add(n, n);
+  add(NEW_GROUP, 'New group…');
+  sel.value = current || '';
+  sel.addEventListener('change', () => {
+    let v = sel.value;
+    if (v === NEW_GROUP) {
+      v = (prompt('Name of the new group:') || '').trim();
+      if (!v) { sel.value = current || ''; return; }
+    }
+    onPick(v || null);
+  });
+  return sel;
+}
+async function groupAction(action, body) {
+  if (state.demo) {
+    Demo.groupAction(action, body);
+  } else {
+    try {
+      const r = await fetch('api/groups/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-VP-Control': '1' }, body: JSON.stringify(body) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.ok === false) { alert('Could not change groups: ' + (j.error || r.status)); }
+    } catch (e) { alert('Proxy unreachable'); }
+  }
+  // keep plotted lines and the group filter pointing at renamed / deleted groups
+  if (action === 'rename' && body.to) {
+    state.plotted = Array.from(new Set(state.plotted.map(n => n === 'g:' + body.from ? 'g:' + body.to.trim() : n)));
+    if ($('fGroup').value === body.from) { $('fGroup').dataset.sig = ''; state.pendingGroupFilter = body.to.trim(); }
+  }
+  if (action === 'delete') {
+    state.plotted = state.plotted.filter(n => n !== 'g:' + body.name);
+    if ($('fGroup').value === body.name) $('fGroup').value = '';
+  }
+  store.set('plotted', state.plotted);
+  await loadStats(true);
+  if ($('groupmenu').classList.contains('open')) renderGroupPanel();
+}
+function groupTotals() {
+  const by = new Map(groupNames().map(n => [n, { devices: 0, online: 0, hash: 0 }]));
+  for (const w of state.stats.workers) {
+    if (!w.group || !by.has(w.group)) continue;
+    const g = by.get(w.group);
+    g.devices++;
+    if (w.status === 'online' || w.status === 'stale' || w.status === 'reconnecting') g.online++;
+    g.hash += hashOf(w) || 0;
+  }
+  return by;
+}
+function renderGroupPanel() {
+  const p = $('groupPanel'); p.textContent = '';
+  if (!state.stats) return;
+  const shown = filtered();
+  // bulk move
+  const mv = document.createElement('div'); mv.className = 'gp-move';
+  mv.appendChild(document.createTextNode('Move the ' + shown.length + ' device' + (shown.length === 1 ? '' : 's') + (filterActive(filters()) ? ' shown' : '') + ' to'));
+  const target = document.createElement('select');
+  target.setAttribute('aria-label', 'Target group');
+  for (const [v, t] of [['', 'No group'], ...groupNames().map(n => [n, n]), [NEW_GROUP, 'New group…']]) {
+    const o = document.createElement('option'); o.value = v; o.textContent = t; target.appendChild(o);
+  }
+  if (groupNames().length) target.value = groupNames()[0];
+  const go = document.createElement('button'); go.className = 'btn small'; go.textContent = 'Move';
+  go.disabled = shown.length === 0;
+  go.addEventListener('click', () => {
+    let g = target.value;
+    if (g === NEW_GROUP) { g = (prompt('Name of the new group:') || '').trim(); if (!g) return; }
+    const what = shown.length + ' device' + (shown.length === 1 ? '' : 's');
+    if (!confirm(g ? 'Move ' + what + ' to "' + g + '"?' : 'Remove ' + what + ' from their groups?')) return;
+    groupAction('assign', { workers: shown.map(w => w.name), group: g || null });
+  });
+  mv.append(target, go);
+  p.appendChild(mv);
+  // groups list
+  const totals = groupTotals();
+  if (totals.size === 0) {
+    const e = document.createElement('div'); e.className = 'gp-empty';
+    e.textContent = 'No groups yet. Pick "New group…" in a device\'s Group column, or filter the table and move the shown devices here.';
+    p.appendChild(e);
+    return;
+  }
+  for (const [name, g] of totals) {
+    const row = document.createElement('div'); row.className = 'gp-row';
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = state.plotted.includes('g:' + name);
+    cb.title = 'Plot this group\'s total'; cb.setAttribute('aria-label', 'Plot group ' + name);
+    cb.addEventListener('change', () => togglePlot('g:' + name, cb.checked));
+    const nm = document.createElement('span'); nm.className = 'gname'; nm.textContent = name; nm.title = name;
+    const act = document.createElement('span'); act.className = 'gact';
+    const show = document.createElement('button'); show.className = 'linkbtn'; show.textContent = 'Show';
+    show.addEventListener('click', () => { $('fGroup').value = name; $('groupmenu').classList.remove('open'); renderTable(); renderChart(); });
+    const ren = document.createElement('button'); ren.className = 'linkbtn'; ren.textContent = 'Rename';
+    ren.addEventListener('click', () => { const to = (prompt('Rename group "' + name + '" to:', name) || '').trim(); if (to && to !== name) groupAction('rename', { from: name, to }); });
+    const del = document.createElement('button'); del.className = 'linkbtn'; del.textContent = 'Delete';
+    del.addEventListener('click', () => { if (confirm('Delete group "' + name + '"? Its ' + g.devices + ' device(s) stay, just without a group.')) groupAction('delete', { name }); });
+    act.append(show, ren, del);
+    const meta = document.createElement('span'); meta.className = 'gmeta';
+    meta.textContent = g.online + ' / ' + g.devices + ' online · ' + fmtH(g.hash) + (state.metric === 'rep' ? ' reported' : ' pool-side');
+    row.append(cb, nm, act, meta);
+    p.appendChild(row);
+  }
+}
+
 function togglePlot(name, on) {
   state.plotted = on ? Array.from(new Set(state.plotted.concat(name))).slice(-6) : state.plotted.filter(n => n !== name);
   store.set('plotted', state.plotted);
   renderTable(); renderChart();
+  if ($('groupmenu').classList.contains('open')) renderGroupPanel();
 }
 
 // ---------- chart ----------
+// sum of several devices' history; missing devices count as 0 for pool-side, as unknown for reported
+function sumSeries(h, names) {
+  return h.t.map((_, i) => {
+    let sum = 0, any = false;
+    for (const n of names) { const v = h.workers[n] ? h.workers[n][i] : null; if (v !== null && v !== undefined) { sum += v; any = true; } }
+    return any ? sum : (h.metric === 'eff' && names.length ? 0 : null);
+  });
+}
 function chartSeries() {
   const h = state.history; if (!h) return [];
   const totals = state.showTotals || state.plotted.length === 0;
@@ -553,7 +711,14 @@ function chartSeries() {
     out.push({ name: 'Filtered (' + names.size + ')', color: css('--s2'), values: vals, width: 2 });
   }
   state.plotted.forEach((n, i) => {
-    out.push({ name: n, color: css(SERIES[(i + 2) % SERIES.length]), values: h.workers[n] || h.t.map(() => null), width: 1.5 });
+    const color = css(SERIES[(i + 2) % SERIES.length]);
+    if (n.startsWith('g:')) {
+      const g = n.slice(2);
+      const members = state.stats ? state.stats.workers.filter(w => w.group === g).map(w => w.name) : [];
+      out.push({ name: g + ' (group, ' + members.length + ')', color, values: sumSeries(h, members), width: 2 });
+    } else {
+      out.push({ name: n, color, values: h.workers[n] || h.t.map(() => null), width: 1.5 });
+    }
   });
   return out;
 }
@@ -787,7 +952,9 @@ async function getJSON(url) {
   if (!r.ok) throw new Error(r.status);
   return r.json();
 }
-async function loadStats() {
+async function loadStats(force) {
+  // don't rebuild the table under an open group dropdown
+  if (!force && document.activeElement && document.activeElement.classList.contains('gsel')) return;
   try {
     state.stats = state.demo ? Demo.stats() : await getJSON('api/stats');
     state.lastOk = Date.now();
@@ -800,6 +967,16 @@ async function loadStats() {
   const ws = state.stats.workers;
   fillSelect($('fMake'), ws.map(w => w.make || 'Unknown'), 'All makes');
   fillSelect($('fOs'), ws.map(w => osFamily(w.os)), 'All systems');
+  fillGroupFilter();
+  if (state.pendingGroupFilter) { $('fGroup').value = state.pendingGroupFilter; state.pendingGroupFilter = null; }
+  // drop plotted groups that no longer exist
+  const gn = new Set(groupNames());
+  const keep = state.plotted.filter(n => !n.startsWith('g:') || gn.has(n.slice(2)));
+  if (keep.length !== state.plotted.length) { state.plotted = keep; store.set('plotted', keep); }
+  $('plotGroups').hidden = gn.size === 0;
+  // group lines depend on membership: redraw the chart only when that changes
+  const sig = ws.map(w => w.name + '=' + (w.group || '')).join('|') + '#' + Array.from(gn).join('|');
+  if (sig !== state.groupSig) { state.groupSig = sig; renderChart(); }
   renderKpis(); renderTable();
   loadPools();
 }
@@ -851,8 +1028,19 @@ bindSeg('themeSeg', 'theme', () => {
 });
 bindSeg('rangeSeg', 'range', loadHistory);
 bindSeg('metricSeg', 'metric', () => { loadHistory(); if (state.stats) { renderKpis(); renderTable(); } });
-for (const id of ['q', 'fStatus', 'fMake', 'fOs', 'fTemp']) $(id).addEventListener('input', () => { renderTable(); renderChart(); });
-$('clearFilters').addEventListener('click', () => { $('q').value = ''; for (const id of ['fStatus', 'fMake', 'fOs', 'fTemp']) $(id).value = ''; renderTable(); renderChart(); });
+for (const id of ['q', 'fStatus', 'fGroup', 'fMake', 'fOs', 'fTemp']) $(id).addEventListener('input', () => { renderTable(); renderChart(); });
+$('clearFilters').addEventListener('click', () => { $('q').value = ''; for (const id of ['fStatus', 'fGroup', 'fMake', 'fOs', 'fTemp']) $(id).value = ''; renderTable(); renderChart(); });
+$('plotGroups').addEventListener('click', () => {
+  state.plotted = groupNames().slice(0, 6).map(n => 'g:' + n); store.set('plotted', state.plotted);
+  renderTable(); renderChart();
+});
+$('groupBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const open = !$('groupmenu').classList.contains('open');
+  $('colmenu').classList.remove('open');
+  $('groupmenu').classList.toggle('open', open);
+  if (open) renderGroupPanel();
+});
 $('plotFiltered').addEventListener('click', () => {
   const col = COLS.find(c => c.key === state.sort.key) || COLS.find(c => c.key === 'hash');
   const rows = filtered().slice().sort((a, b) => ((col.val(b) ?? -Infinity) > (col.val(a) ?? -Infinity) ? 1 : -1) * (state.sort.dir < 0 ? 1 : -1));
@@ -861,8 +1049,11 @@ $('plotFiltered').addEventListener('click', () => {
 });
 $('toggleTotals').addEventListener('click', () => { state.showTotals = !state.showTotals; store.set('showTotals', state.showTotals); renderTable(); renderChart(); });
 $('clearPlot').addEventListener('click', () => { state.plotted = []; store.set('plotted', []); renderTable(); renderChart(); });
-$('colBtn').addEventListener('click', (e) => { e.stopPropagation(); $('colmenu').classList.toggle('open'); });
-document.addEventListener('click', (e) => { if (!$('colmenu').contains(e.target)) $('colmenu').classList.remove('open'); });
+$('colBtn').addEventListener('click', (e) => { e.stopPropagation(); $('groupmenu').classList.remove('open'); $('colmenu').classList.toggle('open'); });
+document.addEventListener('click', (e) => {
+  if (!$('colmenu').contains(e.target)) $('colmenu').classList.remove('open');
+  if (!$('groupmenu').contains(e.target) && document.contains(e.target)) $('groupmenu').classList.remove('open');
+});
 let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(renderChart, 120); });
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (state.stats) { renderTable(); renderChart(); } });
 
@@ -892,6 +1083,23 @@ const Demo = (() => {
       acc: Math.floor(base / 1e6 * 900 * (1 + rnd())), rej: Math.floor(rnd() * 8)
     });
   }
+  // demo groups: by shelf, plus the single-board computers
+  const demoGroupNames = ['Shelf A', 'Shelf B', 'SBCs'];
+  devs.forEach((d, i) => { d.group = d.name.startsWith('sbc') ? 'SBCs' : (i < 13 ? 'Shelf A' : 'Shelf B'); });
+  function groupAction(action, body) {
+    if (action === 'assign') {
+      if (body.group && !demoGroupNames.includes(body.group)) demoGroupNames.push(body.group);
+      devs.forEach(d => { if (body.workers.includes(d.name)) d.group = body.group || null; });
+    } else if (action === 'rename') {
+      const to = body.to.trim();
+      const i = demoGroupNames.indexOf(body.from);
+      if (i >= 0) { if (demoGroupNames.includes(to)) demoGroupNames.splice(i, 1); else demoGroupNames[i] = to; }
+      devs.forEach(d => { if (d.group === body.from) d.group = to; });
+    } else if (action === 'delete') {
+      const i = demoGroupNames.indexOf(body.name); if (i >= 0) demoGroupNames.splice(i, 1);
+      devs.forEach(d => { if (d.group === body.name) d.group = null; });
+    }
+  }
   const wobble = (d, t) => d.base * (1 + 0.04 * Math.sin(t / 3.6e6 + d.base) + 0.03 * Math.sin(t / 5.1e5 + d.temp));
   function stats() {
     const now = Date.now();
@@ -899,7 +1107,7 @@ const Demo = (() => {
       const on = d.status !== 'offline';
       const rep = on && d.status !== 'stale' ? wobble(d, now) : null;
       return {
-        name: d.name, status: d.status, address: 'RDemoWalletAddress', ip: d.ip, connections: on ? 1 : 0, software: 'ccminer/3.8.3', xnsub: true,
+        name: d.name, group: d.group || null, status: d.status, address: 'RDemoWalletAddress', ip: d.ip, connections: on ? 1 : 0, software: 'ccminer/3.8.3', xnsub: true,
         connectedSince: on ? d.since : null, lastShare: d.status === 'online' ? now - rnd() * 40e3 : now - 9 * 60e3,
         lastSeen: now, firstSeen: d.born, effHashrate: rep ? rep * (0.85 + rnd() * 0.3) : 0, repHashrate: rep,
         effShares: rep ? Math.floor(4 + d.base / 1e6 * 2.5) : 0, effSpanSec: 3600,
@@ -919,6 +1127,7 @@ const Demo = (() => {
         accepted: workers.reduce((a, w) => a + w.accepted, 0), rejected: workers.reduce((a, w) => a + w.rejected, 0),
         avgTemp: temps.reduce((a, b) => a + b, 0) / temps.length, maxTemp: Math.max(...temps)
       },
+      groups: demoGroupNames.map(n => ({ name: n, members: devs.filter(d => d.group === n).length })),
       workers
     };
   }
@@ -968,7 +1177,7 @@ const Demo = (() => {
     demoPools.events.unshift(ev);
     state.pools = pools();
   }
-  return { stats, history, pools, poolAction };
+  return { stats, history, pools, poolAction, groupAction };
 })();
 
 // ---------- boot ----------
