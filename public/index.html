@@ -196,6 +196,13 @@ select.gsel { font: inherit; font-size: 13px; color: var(--ink); background: tra
 select.gsel:hover, select.gsel:focus { box-shadow: inset 0 0 0 1px var(--ring); background: var(--surface); }
 select.gsel.none { color: var(--muted); }
 .colmenu .panel.wide { width: min(360px, calc(100vw - 32px)); padding: 10px; }
+.add-form textarea { width: 100%; min-height: 96px; resize: vertical; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--ink); background: var(--surface); border: 0; box-shadow: inset 0 0 0 1px var(--ring); border-radius: 8px; padding: 8px 10px; }
+.add-form .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; color: var(--ink-2); font-size: 13px; }
+.add-form .row select { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 0; box-shadow: inset 0 0 0 1px var(--ring); border-radius: 8px; height: 28px; padding: 0 6px; max-width: 170px; }
+.add-form .help { color: var(--muted); font-size: 12.5px; margin: 0 0 6px; line-height: 1.45; }
+.add-form .result { font-size: 12.5px; margin-top: 8px; line-height: 1.5; }
+.add-form .result .bad { color: var(--critical); }
 .gp-move { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 2px 2px 10px; border-bottom: 1px solid var(--grid); margin-bottom: 6px; color: var(--ink-2); font-size: 13px; }
 .gp-move select { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 0; box-shadow: inset 0 0 0 1px var(--ring); border-radius: 8px; height: 28px; padding: 0 6px; max-width: 170px; }
 .gp-row { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 10px; align-items: center; padding: 6px 4px; border-radius: 6px; }
@@ -254,7 +261,7 @@ select.gsel.none { color: var(--muted); }
       <button data-v="rep" title="What ccminer reports on each device">Device-reported</button><button data-v="eff" title="Calculated from shares accepted by the pool">Pool-side</button>
     </div>
     <input type="search" id="q" placeholder="Search name, model, IP…" aria-label="Search devices">
-    <select id="fStatus" aria-label="Status"><option value="">All statuses</option><option value="online">Online</option><option value="reconnecting">Reconnecting</option><option value="stale">No shares</option><option value="elsewhere">Mining elsewhere</option><option value="offline">Offline</option></select>
+    <select id="fStatus" aria-label="Status"><option value="">All statuses</option><option value="online">Online</option><option value="reconnecting">Reconnecting</option><option value="stale">No shares</option><option value="elsewhere">Mining elsewhere</option><option value="idle">Not mining</option><option value="offline">Offline</option></select>
     <select id="fGroup" aria-label="Group"><option value="">All groups</option></select>
     <select id="fMake" aria-label="Make"><option value="">All makes</option></select>
     <select id="fOs" aria-label="System"><option value="">All systems</option></select>
@@ -280,6 +287,7 @@ select.gsel.none { color: var(--muted); }
     <div class="table-scroll"><table id="tbl"><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>
     <div class="table-foot">
       <span id="tableNote">Tick a device to plot it. Click a column to sort.</span>
+      <div class="colmenu" id="addmenu"><button class="btn" id="addBtn" title="Add devices by IP address, e.g. to reach them over SSH before they mine">Add devices</button><div class="panel wide" id="addPanel"></div></div>
       <div class="colmenu" id="groupmenu"><button class="btn" id="groupBtn">Groups</button><div class="panel wide" id="groupPanel"></div></div>
       <div class="colmenu" id="colmenu"><button class="btn" id="colBtn">Columns</button><div class="panel" id="colPanel"></div></div>
     </div>
@@ -340,7 +348,7 @@ function tempLevel(t) {
   if (t >= 60) return ['--warning', 'warm'];
   return ['--good', 'ok'];
 }
-const STATUS = { online: ['--good', 'Online'], reconnecting: ['--warning', 'Reconnecting'], stale: ['--warning', 'No shares'], elsewhere: ['--serious', 'Mining elsewhere'], offline: ['--critical', 'Offline'] };
+const STATUS = { online: ['--good', 'Online'], idle: ['--muted', 'Not mining'], reconnecting: ['--warning', 'Reconnecting'], stale: ['--warning', 'No shares'], elsewhere: ['--serious', 'Mining elsewhere'], offline: ['--critical', 'Offline'] };
 
 // ---------- state ----------
 const state = {
@@ -358,7 +366,7 @@ const state = {
 const hashOf = (w) => state.metric === 'rep' ? (w.repHashrate ?? null) : w.effHashrate;
 const COLS = [
   { key: 'plot', label: '', nosort: true, fixed: true },
-  { key: 'status', label: 'Status', val: w => ({ online: 0, reconnecting: 1, stale: 2, elsewhere: 3, offline: 4 })[w.status] },
+  { key: 'status', label: 'Status', val: w => ({ online: 0, reconnecting: 1, stale: 2, elsewhere: 3, idle: 4, offline: 5 })[w.status] },
   { key: 'name', label: 'Worker', val: w => w.name.toLowerCase(), fixed: true },
   { key: 'group', label: 'Group', val: w => w.group ? w.group.toLowerCase() : null },
   { key: 'make', label: 'Make', val: w => (w.make || '').toLowerCase() },
@@ -452,7 +460,7 @@ function renderKpis() {
     ? 'Pool-side ' + fmtH(eff) + ' · ' + shareBasis(t.effShares, t.effSpanSec, s.hashrateWindowSec)
     : (rep > 0 ? 'Device-reported ' + fmtH(rep) : shareBasis(t.effShares, t.effSpanSec, s.hashrateWindowSec));
   $('kOnline').textContent = t.online + ' / ' + t.devices;
-  $('kOnlineSub').textContent = [t.offline ? t.offline + ' offline' : 'none offline', t.elsewhere ? t.elsewhere + ' mining elsewhere' : '', t.reconnecting ? t.reconnecting + ' reconnecting' : '', t.stale ? t.stale + ' without shares' : ''].filter(Boolean).join(' · ');
+  $('kOnlineSub').textContent = [t.offline ? t.offline + ' offline' : 'none offline', t.idle ? t.idle + ' not mining' : '', t.elsewhere ? t.elsewhere + ' mining elsewhere' : '', t.reconnecting ? t.reconnecting + ' reconnecting' : '', t.stale ? t.stale + ' without shares' : ''].filter(Boolean).join(' · ');
   $('kAvg').textContent = t.online ? fmtH(main / t.online) : '—';
   const hashes = s.workers.filter(w => w.status !== 'offline').map(hashOf).filter(h => h > 0);
   $('kAvgSub').textContent = hashes.length ? 'Range ' + fmtH(Math.min(...hashes)) + ' – ' + fmtH(Math.max(...hashes)) : '—';
@@ -525,7 +533,7 @@ function renderTable() {
   const cols = visibleCols();
   for (const w of rows) {
     const tr = document.createElement('tr');
-    if (w.status === 'offline') tr.className = 'offline';
+    if (w.status === 'offline' || w.status === 'idle') tr.className = 'offline';
     for (const c of cols) {
       switch (c.key) {
         case 'plot': {
@@ -541,7 +549,8 @@ function renderTable() {
           const td = cell(tr, dot(v, l, 'status'));
           if (w.status === 'elsewhere') td.title = 'ccminer is running but not connected to this proxy' + (w.minerPoolUrl ? ': it is on ' + w.minerPoolUrl : '') + '. Usually it failed over to its backup pool.';
           else if (w.status === 'reconnecting') td.title = 'Disconnected less than a minute ago; ccminer normally reconnects within seconds.';
-          else if (w.status === 'offline') td.title = 'Not connected and ccminer not reachable' + (w.lastSeen ? ' · last seen ' + fmtAgo(w.lastSeen, state.stats.time) : '');
+          else if (w.status === 'idle') td.title = 'Added by hand. The device answers on its SSH port, but is not mining through this proxy.';
+          else if (w.status === 'offline') td.title = (w.manual ? 'Added by hand. No answer on its SSH port or ccminer API' : 'Not connected and ccminer not reachable') + (w.lastSeen ? ' · last seen ' + fmtAgo(w.lastSeen, state.stats.time) : '');
           break;
         }
         case 'name': {
@@ -599,9 +608,11 @@ function renderTable() {
             b.addEventListener('click', () => sshPick('d:' + w.name));
             td.appendChild(b);
           }
-          if (w.status === 'offline' && !state.demo) {
-            const b = document.createElement('button'); b.className = 'forget'; b.textContent = 'Forget';
-            b.addEventListener('click', () => forget(w.name)); td.appendChild(b);
+          if ((w.status === 'offline' || w.status === 'idle') && (!state.demo || w.manual)) {
+            const b = document.createElement('button'); b.className = 'forget'; b.textContent = w.manual ? 'Remove' : 'Forget';
+            b.title = w.manual ? 'Remove this device you added by hand' : 'Remove this device from the dashboard';
+            b.addEventListener('click', () => { if (!w.manual || confirm('Remove ' + w.name + ' (' + w.ip + ')?')) forget(w.name); });
+            td.appendChild(b);
           }
           break;
         }
@@ -738,6 +749,79 @@ function renderGroupPanel() {
     p.appendChild(row);
   }
 }
+
+// ---------- add devices by hand ----------
+// "name 192.168.1.50", "192.168.1.50 name", "192.168.1.50" (name = the address); commas or tabs also work
+function parseDeviceLines(text) {
+  const out = [];
+  for (const raw of text.split(/\n/)) {
+    const line = raw.replace(/#.*/, '').trim();
+    if (!line) continue;
+    const parts = line.split(/[\s,;]+/).filter(Boolean);
+    const isIp = (x) => /^\d{1,3}(\.\d{1,3}){3}$/.test(x) || /^[0-9a-f]*:[0-9a-f:]+$/i.test(x);
+    const ip = parts.find(isIp) || (parts.length === 1 ? parts[0] : parts[1]);
+    const name = parts.find(x => x !== ip) || '';
+    out.push({ name, ip, line });
+  }
+  return out;
+}
+function renderAddPanel(result) {
+  const p = $('addPanel'); p.textContent = '';
+  const f = document.createElement('div'); f.className = 'add-form';
+  const help = document.createElement('p'); help.className = 'help';
+  help.textContent = 'One device per line: a name and its IP address, or just the address. Use the device\'s worker name, so it joins up when it starts mining. Added devices show as "Not mining" while their SSH port answers.';
+  const ta = document.createElement('textarea'); ta.id = 'addText'; ta.spellcheck = false;
+  ta.placeholder = 'phone21 192.168.1.61\nphone22 192.168.1.62\n192.168.1.70';
+  ta.value = state.addDraft || '';
+  ta.addEventListener('input', () => { state.addDraft = ta.value; });
+  const row = document.createElement('div'); row.className = 'row';
+  row.appendChild(document.createTextNode('Group'));
+  const gsel = document.createElement('select'); gsel.setAttribute('aria-label', 'Group for the new devices');
+  for (const [v, t] of [['', 'No group'], ...groupNames().map(n => [n, n]), [NEW_GROUP, 'New group…']]) {
+    const o = document.createElement('option'); o.value = v; o.textContent = t; gsel.appendChild(o);
+  }
+  const spacer = document.createElement('span'); spacer.className = 'spacer';
+  const go = document.createElement('button'); go.className = 'btn small'; go.textContent = 'Add';
+  go.addEventListener('click', async () => {
+    const devices = parseDeviceLines(ta.value);
+    if (!devices.length) { ta.focus(); return; }
+    let group = gsel.value;
+    if (group === NEW_GROUP) { group = (prompt('Name of the new group:') || '').trim(); if (!group) return; }
+    let res;
+    if (state.demo) res = Demo.addDevices(devices, group || null);
+    else {
+      try {
+        const r = await fetch('api/devices/add', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-VP-Control': '1' }, body: JSON.stringify({ devices: devices.map(d => ({ name: d.name, ip: d.ip })), group: group || null }) });
+        res = await r.json().catch(() => ({ ok: false, error: r.status }));
+      } catch (e) { res = { ok: false, error: 'proxy unreachable' }; }
+    }
+    // keep only the lines that failed, so they can be fixed and added again
+    const failed = new Set((res.results || []).filter(x => !x.ok).map(x => x.ip));
+    state.addDraft = devices.filter(d => failed.has(d.ip)).map(d => d.line).join('\n');
+    await loadStats(true);
+    renderAddPanel(res);
+  });
+  row.append(gsel, spacer, go);
+  f.append(help, ta, row);
+  if (result) {
+    const r = document.createElement('div'); r.className = 'result';
+    if (result.error && !result.results) { const b = document.createElement('div'); b.className = 'bad'; b.textContent = String(result.error); r.appendChild(b); }
+    const okN = (result.results || []).filter(x => x.ok).length;
+    if (okN) { const d = document.createElement('div'); d.textContent = 'Added ' + okN + ' device' + (okN === 1 ? '' : 's') + '.'; r.appendChild(d); }
+    for (const x of (result.results || []).filter(x => !x.ok)) {
+      const d = document.createElement('div'); d.className = 'bad'; d.textContent = (x.name && x.name !== x.ip ? x.name + ': ' : '') + x.error; r.appendChild(d);
+    }
+    f.appendChild(r);
+  }
+  p.appendChild(f);
+}
+$('addBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const open = !$('addmenu').classList.contains('open');
+  $('colmenu').classList.remove('open'); $('groupmenu').classList.remove('open');
+  $('addmenu').classList.toggle('open', open);
+  if (open) { renderAddPanel(); $('addText').focus(); }
+});
 
 function togglePlot(name, on) {
   state.plotted = on ? Array.from(new Set(state.plotted.concat(name))).slice(-6) : state.plotted.filter(n => n !== name);
@@ -1256,7 +1340,8 @@ function setLive(ok) {
   li.appendChild(document.createTextNode(state.demo ? 'Simulated fleet' : ok ? 'Live · updated ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Proxy unreachable — showing last data'));
 }
 async function forget(name) {
-  try { await fetch('api/forget', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ worker: name }) }); } catch (e) {}
+  if (state.demo) Demo.forget(name);
+  else try { await fetch('api/forget', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-VP-Control': '1' }, body: JSON.stringify({ worker: name }) }); } catch (e) {}
   state.plotted = state.plotted.filter(n => n !== name); store.set('plotted', state.plotted);
   loadStats();
 }
@@ -1295,7 +1380,7 @@ $('plotGroups').addEventListener('click', () => {
 $('groupBtn').addEventListener('click', (e) => {
   e.stopPropagation();
   const open = !$('groupmenu').classList.contains('open');
-  $('colmenu').classList.remove('open');
+  $('colmenu').classList.remove('open'); $('addmenu').classList.remove('open');
   $('groupmenu').classList.toggle('open', open);
   if (open) renderGroupPanel();
 });
@@ -1307,10 +1392,11 @@ $('plotFiltered').addEventListener('click', () => {
 });
 $('toggleTotals').addEventListener('click', () => { state.showTotals = !state.showTotals; store.set('showTotals', state.showTotals); renderTable(); renderChart(); });
 $('clearPlot').addEventListener('click', () => { state.plotted = []; store.set('plotted', []); renderTable(); renderChart(); });
-$('colBtn').addEventListener('click', (e) => { e.stopPropagation(); $('groupmenu').classList.remove('open'); $('colmenu').classList.toggle('open'); });
+$('colBtn').addEventListener('click', (e) => { e.stopPropagation(); $('groupmenu').classList.remove('open'); $('addmenu').classList.remove('open'); $('colmenu').classList.toggle('open'); });
 document.addEventListener('click', (e) => {
   if (!$('colmenu').contains(e.target)) $('colmenu').classList.remove('open');
   if (!$('groupmenu').contains(e.target) && document.contains(e.target)) $('groupmenu').classList.remove('open');
+  if (!$('addmenu').contains(e.target) && document.contains(e.target)) $('addmenu').classList.remove('open');
 });
 let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(renderChart, 120); });
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (state.stats) { renderTable(); renderChart(); } });
@@ -1362,10 +1448,10 @@ const Demo = (() => {
   function stats() {
     const now = Date.now();
     const workers = devs.map(d => {
-      const on = d.status !== 'offline';
+      const on = d.status !== 'offline' && d.status !== 'idle';
       const rep = on && d.status !== 'stale' ? wobble(d, now) : null;
       return {
-        name: d.name, group: d.group || null, status: d.status, address: 'RDemoWalletAddress', ip: d.ip, connections: on ? 1 : 0, software: 'ccminer/3.8.3', xnsub: true,
+        name: d.name, group: d.group || null, status: d.status, manual: !!d.manual, address: 'RDemoWalletAddress', ip: d.ip, connections: on ? 1 : 0, software: 'ccminer/3.8.3', xnsub: true,
         connectedSince: on ? d.since : null, lastShare: d.status === 'online' ? now - rnd() * 40e3 : now - 9 * 60e3,
         lastSeen: now, firstSeen: d.born, effHashrate: rep ? rep * (0.85 + rnd() * 0.3) : 0, repHashrate: rep,
         effShares: rep ? Math.floor(4 + d.base / 1e6 * 2.5) : 0, effSpanSec: 3600,
@@ -1376,12 +1462,12 @@ const Demo = (() => {
         charging: d.lvl ? 'Charging' : null, load: on ? d.cores - rnd() * 0.3 : null, deviceUptime: null, agentSeen: now
       };
     });
-    const on = workers.filter(w => w.status !== 'offline'), temps = on.map(w => w.cpuTemp).filter(Boolean);
+    const on = workers.filter(w => w.status !== 'offline' && w.status !== 'idle'), temps = on.map(w => w.cpuTemp).filter(Boolean);
     return {
       time: now, startedAt: now0 - 5.2 * 86400e3, pool: demoPools.pools[demoPools.active].name, hashrateWindowSec: 600, poolConnections: [],
       totals: {
         effHashrate: workers.reduce((a, w) => a + w.effHashrate, 0), effShares: 312, effSpanSec: 1500, repHashrate: workers.reduce((a, w) => a + (w.repHashrate || 0), 0),
-        online: on.length, offline: workers.length - on.length, stale: workers.filter(w => w.status === 'stale').length, devices: workers.length,
+        online: on.length, idle: workers.filter(w => w.status === 'idle').length, offline: workers.filter(w => w.status === 'offline').length, stale: workers.filter(w => w.status === 'stale').length, devices: workers.length,
         accepted: workers.reduce((a, w) => a + w.accepted, 0), rejected: workers.reduce((a, w) => a + w.rejected, 0),
         avgTemp: temps.reduce((a, b) => a + b, 0) / temps.length, maxTemp: Math.max(...temps)
       },
@@ -1475,7 +1561,22 @@ const Demo = (() => {
     return { ok: true, id: r.id };
   }
   function sshGet(id) { const r = sshRuns.find(x => x.id === id); return Object.assign({}, r, { summary: sshSummary(r) }); }
-  return { stats, history, pools, poolAction, groupAction, sshInfo, sshStart, sshGet };
+  function addDevices(list, group) {
+    const results = [];
+    for (const d of list) {
+      const name = d.name || d.ip;
+      if (!/^(10|127|192\.168|172\.(1[6-9]|2\d|3[01]))\./.test(d.ip)) { results.push({ name, ip: d.ip, ok: false, error: d.ip + ' is not a local network address' }); continue; }
+      if (!devs.some(x => x.name === name)) {
+        devs.push({ name, manual: true, group: group || null, ip: d.ip, status: 'idle', make: null, model: null, soc: null, os: null, kernel: null, arch: null, cores: null, ramMB: null,
+          base: 0, temp: 0, bat: null, lvl: null, since: Date.now(), born: Date.now(), acc: 0, rej: 0 });
+        if (group && !demoGroupNames.includes(group)) demoGroupNames.push(group);
+      }
+      results.push({ name, ip: d.ip, ok: true });
+    }
+    return { ok: results.some(r => r.ok), results };
+  }
+  function forget(name) { const i = devs.findIndex(d => d.name === name && d.manual); if (i >= 0) devs.splice(i, 1); }
+  return { stats, history, pools, poolAction, groupAction, sshInfo, sshStart, sshGet, addDevices, forget };
 })();
 
 // ---------- boot ----------

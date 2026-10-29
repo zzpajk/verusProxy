@@ -105,6 +105,26 @@ Put devices in groups (a shelf, a room, a batch of phones…) to filter and char
 
 Devices are matched by worker name, so keep names unique and stable. Anyone who can open the dashboard can edit groups; set `dashboard.auth` if that should be restricted.
 
+## Adding devices by hand
+
+To see (and SSH into) devices that aren't mining through the proxy yet, open **Add devices** under the table and paste one per line, a name and its IP address, or just the address (then the address is its name):
+
+```
+phone21 192.168.1.61
+phone22 192.168.1.62
+192.168.1.70
+```
+
+Optionally put them straight into a group. Use the device's ccminer worker name as the name, so the row joins up with the mining data once it starts mining through the proxy. Only local network addresses are accepted (10.x, 172.16–31.x, 192.168.x, 100.64–127.x).
+
+An added device shows as:
+- **Not mining**: its SSH port (`ssh.port`, 8022) answers, but it isn't mining through the proxy;
+- **Mining elsewhere**: ccminer's API answers and it's on another pool;
+- **Online**: it mines through the proxy under that name;
+- **Offline**: nothing answers.
+
+Added devices are kept until you press **Remove** (they're never cleaned up automatically) and are stored with the rest of the stats in `data/stats.json`.
+
 ## Where the data comes from
 
 | Source | Gives | Setup |
