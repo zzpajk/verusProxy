@@ -297,7 +297,8 @@ sudo systemctl enable --now verusproxy-watchdog.timer
 
 ### API
 
-`GET /api/health`, `GET /api/stats`, `GET /api/history?range=1h|6h|24h|7d|30d&metric=rep|eff`, `GET /api/pools`, `POST /api/report`, `POST /api/forget {"worker": "..."}`.
+`GET /api/health`, `GET /api/stats`, `GET /api/history?range=1h|6h|24h|7d|30d&metric=rep|eff`, `GET /api/pools`, `POST /api/report`.
+With header `X-VP-Control: 1`: `POST /api/forget {"worker": "..."}`, `POST /api/devices/add {"devices": [{"name": "phone21", "ip": "192.168.1.61"}], "group": "Shelf A"}`, `POST /api/groups/{assign,create,rename,delete}`.
 Remote commands (needs `ssh.enabled`, `dashboard.auth` and header `X-VP-Control: 1`): `GET /api/ssh`, `POST /api/ssh/run {"workers": ["phone01"], "command": "uptime"}` (or `"preset": "Uptime"`), `GET /api/ssh/run?id=...`.
 Pool control (needs `dashboard.auth` and header `X-VP-Control: 1`): `POST /api/pools/switch {"index": 1}`, `POST /api/pools/auto {"enabled": true}`, `POST /api/pools/reset-preferred`.
 
