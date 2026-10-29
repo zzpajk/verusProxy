@@ -154,6 +154,43 @@ input[type=checkbox] { accent-color: var(--s1); width: 15px; height: 15px; margi
 .colmenu label { display: flex; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 6px; font-size: 13px; cursor: pointer; }
 .colmenu label:hover { background: var(--wash); }
 .note { color: var(--muted); font-size: 12.5px; margin-top: 12px; }
+.ssh-card { margin-top: 12px; padding: 14px 16px 12px; }
+.ssh-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px; }
+.ssh-head h2 { font-size: 14px; font-weight: 600; margin: 0; }
+.ssh-head .hint { color: var(--muted); font-size: 12.5px; }
+.ssh-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ssh-form select, .ssh-form input { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 0;
+  box-shadow: inset 0 0 0 1px var(--ring); border-radius: 8px; height: 32px; padding: 0 10px; }
+.ssh-form select { max-width: 260px; }
+.ssh-form input { flex: 1; min-width: 220px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.ssh-presets { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.chip { font: inherit; font-size: 12.5px; color: var(--ink-2); background: transparent; border: 0; box-shadow: inset 0 0 0 1px var(--ring);
+  border-radius: 999px; padding: 3px 10px; cursor: pointer; }
+.chip:hover, .chip[aria-pressed="true"] { background: var(--wash); color: var(--ink); }
+.ssh-setup { margin: 4px 0 12px; padding: 10px 12px; border-radius: 10px; background: var(--wash); font-size: 13px; color: var(--ink-2); line-height: 1.5; }
+.ssh-setup code, .ssh-setup pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+.ssh-setup pre { white-space: pre-wrap; word-break: break-all; background: var(--surface); box-shadow: inset 0 0 0 1px var(--ring); border-radius: 8px; padding: 8px 10px; margin: 6px 0; color: var(--ink); }
+.ssh-runs { margin-top: 12px; border-top: 1px solid var(--grid); }
+.run { border-bottom: 1px solid var(--grid); }
+.run-head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; padding: 8px 2px; cursor: pointer; font-size: 13px; }
+.run-head:hover { background: var(--wash); }
+.run-head .when { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 12.5px; }
+.run-head .cmd { flex: 1 1 160px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.run-head .counts { white-space: nowrap; display: inline-flex; gap: 10px; color: var(--ink-2); font-size: 12.5px; }
+.run-head .caret { color: var(--muted); width: 10px; }
+.run-body { padding: 0 2px 10px 22px; }
+.run-tools { display: flex; gap: 6px; flex-wrap: wrap; margin: 2px 0 8px; color: var(--muted); font-size: 12.5px; align-items: center; }
+.res { padding: 6px 0; border-top: 1px dashed var(--grid); }
+.res-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 13px; }
+.res-head b { font-weight: 600; }
+.res-head .dim { color: var(--muted); font-size: 12px; }
+.res .note { margin: 2px 0 0; color: var(--ink-2); font-size: 12.5px; }
+.res pre { margin: 6px 0 0; padding: 8px 10px; max-height: 240px; overflow: auto; background: var(--page); border-radius: 8px;
+  box-shadow: inset 0 0 0 1px var(--ring); font-size: 12px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; color: var(--ink); }
+.res pre.err { color: var(--ink-2); }
+.sshbtn { font: inherit; font-size: 12px; color: var(--ink-2); background: none; border: 0; cursor: pointer; padding: 2px 4px; border-radius: 4px; }
+.sshbtn:hover { background: var(--wash); color: var(--ink); }
 select.gsel { font: inherit; font-size: 13px; color: var(--ink); background: transparent; border: 0; border-radius: 6px;
   padding: 3px 4px; max-width: 150px; cursor: pointer; }
 select.gsel:hover, select.gsel:focus { box-shadow: inset 0 0 0 1px var(--ring); background: var(--surface); }
@@ -246,6 +283,22 @@ select.gsel.none { color: var(--muted); }
       <div class="colmenu" id="groupmenu"><button class="btn" id="groupBtn">Groups</button><div class="panel wide" id="groupPanel"></div></div>
       <div class="colmenu" id="colmenu"><button class="btn" id="colBtn">Columns</button><div class="panel" id="colPanel"></div></div>
     </div>
+  </section>
+  <section class="card ssh-card" id="sshCard" hidden>
+    <div class="ssh-head">
+      <h2>Remote commands</h2>
+      <span class="hint" id="sshHint"></span>
+      <span class="spacer"></span>
+      <button class="btn small" id="sshSetupBtn">Setup</button>
+    </div>
+    <div class="ssh-setup" id="sshSetup" hidden></div>
+    <div class="ssh-form">
+      <select id="sshTarget" aria-label="Devices to run on"></select>
+      <input id="sshCmd" class="mono" placeholder="Command to run in Termux, e.g. uptime" aria-label="Command" autocomplete="off" spellcheck="false">
+      <button class="btn" id="sshRun">Run</button>
+    </div>
+    <div class="ssh-presets" id="sshPresets"></div>
+    <div class="ssh-runs" id="sshRuns"></div>
   </section>
   <p class="note" id="footNote"></p>
 </div>
@@ -540,6 +593,12 @@ function renderTable() {
         case 'firstSeen': cell(tr, w.firstSeen ? new Date(w.firstSeen).toLocaleDateString() : null, 'num'); break;
         case 'action': {
           const td = cell(tr, '');
+          if (state.ssh && state.ssh.enabled) {
+            const b = document.createElement('button'); b.className = 'sshbtn'; b.textContent = 'SSH';
+            b.title = 'Run a command on ' + w.name;
+            b.addEventListener('click', () => sshPick('d:' + w.name));
+            td.appendChild(b);
+          }
           if (w.status === 'offline' && !state.demo) {
             const b = document.createElement('button'); b.className = 'forget'; b.textContent = 'Forget';
             b.addEventListener('click', () => forget(w.name)); td.appendChild(b);
@@ -946,6 +1005,192 @@ $('autoToggle').addEventListener('click', () => {
 });
 $('resetPreferred').addEventListener('click', () => poolAction('reset-preferred'));
 
+// ---------- remote commands (SSH) ----------
+const SSH_STATE = {
+  ok: ['--good', 'OK'], failed: ['--serious', 'Exit'], error: ['--critical', 'Error'],
+  timeout: ['--critical', 'Timed out'], running: ['--warning', 'Running…'], queued: ['--muted', 'Queued']
+};
+state.sshOpen = new Set();
+state.sshFull = {};
+async function loadSsh() {
+  try { state.ssh = state.demo ? Demo.sshInfo() : await getJSON('api/ssh'); } catch (e) { return; }
+  renderSsh();
+}
+function sshTargets() {
+  const v = $('sshTarget').value, ws = state.stats ? state.stats.workers : [];
+  if (v === 'shown') return filtered().map(w => w.name);
+  if (v.startsWith('g:')) return ws.filter(w => w.group === v.slice(2)).map(w => w.name);
+  if (v.startsWith('d:')) return [v.slice(2)];
+  return [];
+}
+function fillSshTargets() {
+  // a target picked from a row's SSH button wins over the current selection
+  const sel = $('sshTarget'), cur = state.sshPendingTarget || sel.value || 'shown';
+  const ws = state.stats ? state.stats.workers : [];
+  const opts = [['shown', 'Devices shown in the table (' + filtered().length + ')']];
+  for (const g of groupNames()) opts.push(['g:' + g, 'Group: ' + g + ' (' + ws.filter(w => w.group === g).length + ')']);
+  for (const w of ws.slice().sort((a, b) => a.name.localeCompare(b.name))) opts.push(['d:' + w.name, 'Device: ' + w.name + (w.status === 'offline' ? ' (offline)' : '')]);
+  const sig = opts.map(o => o.join('=')).join('|');
+  if (sel.dataset.sig !== sig) {
+    sel.dataset.sig = sig; sel.textContent = '';
+    for (const [v, t] of opts) { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); }
+  }
+  sel.value = opts.some(o => o[0] === cur) ? cur : 'shown';
+  state.sshPendingTarget = null;
+}
+function sshPick(target) {
+  state.sshPendingTarget = target;
+  fillSshTargets();
+  $('sshCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  $('sshCmd').focus({ preventScroll: true });
+}
+function renderSsh() {
+  const ss = state.ssh;
+  // only shown when the proxy has remote commands switched on
+  if (!ss || !ss.enabled) { $('sshCard').hidden = true; return; }
+  const first = $('sshCard').hidden;
+  $('sshCard').hidden = false;
+  if (first && state.stats) renderTable();   // adds the SSH buttons to the rows
+  $('sshHint').textContent = 'Runs over SSH as ' + ss.user + '@device:' + ss.port + ' · stops after ' + ss.timeoutSec + ' s' + (ss.allowCustom ? '' : ' · saved commands only');
+  $('sshCmd').readOnly = !ss.allowCustom;
+  $('sshCmd').placeholder = ss.allowCustom ? 'Command to run in Termux, e.g. uptime' : 'Pick a saved command below';
+  fillSshTargets();
+  // presets
+  const pr = $('sshPresets');
+  const psig = JSON.stringify(ss.presets) + state.sshPreset;
+  if (pr.dataset.sig !== psig) {
+    pr.dataset.sig = psig; pr.textContent = '';
+    for (const p of ss.presets) {
+      const b = document.createElement('button'); b.className = 'chip'; b.textContent = p.name; b.title = p.command;
+      b.setAttribute('aria-pressed', String(state.sshPreset === p.name));
+      b.addEventListener('click', () => { state.sshPreset = p.name; $('sshCmd').value = p.command; renderSsh(); $('sshCmd').focus(); });
+      pr.appendChild(b);
+    }
+  }
+  // setup help
+  const su = $('sshSetup');
+  su.textContent = '';
+  const para = (t) => { const d = document.createElement('div'); d.textContent = t; su.appendChild(d); return d; };
+  const pre = (t) => { const d = document.createElement('pre'); d.textContent = t; su.appendChild(d); return d; };
+  para('The proxy logs in with an SSH key (never a password). Each device needs the proxy\'s public key once.');
+  if (ss.publicKey) {
+    para('Easiest: on the proxy machine, as user "' + ss.proxyUser + '", run this — it asks each device\'s Termux password once:');
+    pre('cd ~/verusProxy && ./deploy/ssh-copy-key.sh');
+    para('Or in Termux on a device, paste:');
+    pre("mkdir -p ~/.ssh && echo '" + ss.publicKey + "' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys");
+  } else {
+    para('No SSH key found for user "' + ss.proxyUser + '" on the proxy machine. Create one there, then run the setup script:');
+    pre('ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519\ncd ~/verusProxy && ./deploy/ssh-copy-key.sh');
+  }
+  para('Termux needs sshd running (`pkg install openssh`, set a password with `passwd`, then `sshd`; add `sshd` to ~/.termux/boot to start it with the phone).');
+  renderSshRuns();
+}
+function renderSshRuns() {
+  const box = $('sshRuns'), ss = state.ssh;
+  const sig = JSON.stringify(ss.runs) + JSON.stringify([...state.sshOpen].map(id => state.sshFull[id] ? state.sshFull[id].summary : null)) + [...state.sshOpen].join();
+  if (box.dataset.sig === sig) return;
+  box.dataset.sig = sig;
+  box.textContent = '';
+  if (!ss.runs.length) {
+    const e = document.createElement('div'); e.className = 'gp-empty'; e.textContent = 'No commands run yet. Every run is also written to data/ssh-log.jsonl on the proxy.';
+    box.appendChild(e); return;
+  }
+  for (const r of ss.runs.slice(0, 15)) {
+    const wrap = document.createElement('div'); wrap.className = 'run';
+    const head = document.createElement('div'); head.className = 'run-head'; head.tabIndex = 0;
+    const caret = document.createElement('span'); caret.className = 'caret'; caret.textContent = state.sshOpen.has(r.id) ? '▾' : '▸';
+    const when = document.createElement('span'); when.className = 'when';
+    when.textContent = new Date(r.t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const cmd = document.createElement('span'); cmd.className = 'cmd mono'; cmd.textContent = r.command; cmd.title = r.command;
+    const counts = document.createElement('span'); counts.className = 'counts';
+    if (r.ok) counts.appendChild(dot('--good', r.ok + ' ok', 'status'));
+    if (r.failed) counts.appendChild(dot('--critical', r.failed + ' failed', 'status'));
+    if (r.running) counts.appendChild(dot('--warning', r.running + ' running', 'status'));
+    head.append(caret, when, cmd, counts);
+    const toggle = () => { state.sshOpen.has(r.id) ? state.sshOpen.delete(r.id) : state.sshOpen.add(r.id); loadSshRun(r.id); };
+    head.addEventListener('click', toggle);
+    head.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    wrap.appendChild(head);
+    if (state.sshOpen.has(r.id) && state.sshFull[r.id]) wrap.appendChild(renderRunBody(state.sshFull[r.id]));
+    box.appendChild(wrap);
+  }
+}
+function renderRunBody(run) {
+  const body = document.createElement('div'); body.className = 'run-body';
+  const tools = document.createElement('div'); tools.className = 'run-tools';
+  tools.appendChild(document.createTextNode((run.by ? 'Run by ' + run.by + ' · ' : '') + run.targets.length + ' device' + (run.targets.length === 1 ? '' : 's')));
+  const failed = run.targets.filter(t => t.state !== 'ok' && t.state !== 'running' && t.state !== 'queued').map(t => t.name);
+  if (failed.length && run.summary.done) {
+    const b = document.createElement('button'); b.className = 'btn small'; b.textContent = 'Retry ' + failed.length + ' failed';
+    b.addEventListener('click', (e) => { e.stopPropagation(); sshRun(failed, run.command, run.preset); });
+    tools.appendChild(b);
+  }
+  const again = document.createElement('button'); again.className = 'btn small'; again.textContent = 'Use command';
+  again.title = 'Put this command in the box above';
+  again.addEventListener('click', (e) => { e.stopPropagation(); $('sshCmd').value = run.command; state.sshPreset = run.preset; $('sshCmd').focus(); });
+  tools.appendChild(again);
+  body.appendChild(tools);
+  // failures first, then by name
+  const order = { error: 0, timeout: 0, failed: 1, running: 2, queued: 3, ok: 4 };
+  for (const t of run.targets.slice().sort((a, b) => order[a.state] - order[b.state] || a.name.localeCompare(b.name))) {
+    const row = document.createElement('div'); row.className = 'res';
+    const h = document.createElement('div'); h.className = 'res-head';
+    const [col, lbl] = SSH_STATE[t.state] || SSH_STATE.error;
+    h.appendChild(dot(col, t.state === 'failed' ? 'Exit ' + t.exit : lbl, 'status'));
+    const n = document.createElement('b'); n.textContent = t.name; h.appendChild(n);
+    const meta = document.createElement('span'); meta.className = 'dim';
+    meta.textContent = [t.ip, t.ms !== null && t.ms !== undefined ? (t.ms / 1000).toFixed(1) + ' s' : ''].filter(Boolean).join(' · ');
+    h.appendChild(meta);
+    row.appendChild(h);
+    if (t.note) { const nt = document.createElement('div'); nt.className = 'note'; nt.textContent = t.note; row.appendChild(nt); }
+    if (t.out) { const o = document.createElement('pre'); o.className = 'mono'; o.textContent = t.out.replace(/\n+$/, ''); row.appendChild(o); }
+    if (t.err && t.state !== 'error') { const o = document.createElement('pre'); o.className = 'mono err'; o.textContent = t.err.replace(/\n+$/, ''); row.appendChild(o); }
+    else if (t.err && t.state === 'error' && !t.note) { const o = document.createElement('pre'); o.className = 'mono err'; o.textContent = t.err.replace(/\n+$/, ''); row.appendChild(o); }
+    body.appendChild(row);
+  }
+  return body;
+}
+async function loadSshRun(id) {
+  try { state.sshFull[id] = state.demo ? Demo.sshGet(id) : await getJSON('api/ssh/run?id=' + encodeURIComponent(id)); } catch (e) {}
+  renderSshRuns();
+}
+async function sshRun(names, command, preset) {
+  if (!names.length) { alert('No devices selected.'); return; }
+  if (!command.trim()) { alert('Type a command first.'); return; }
+  const list = names.length <= 8 ? names.join(', ') : names.slice(0, 8).join(', ') + ' and ' + (names.length - 8) + ' more';
+  if (!confirm('Run on ' + names.length + ' device' + (names.length === 1 ? '' : 's') + ' (' + list + '):\n\n' + command)) return;
+  const body = { workers: names };
+  if (preset && state.ssh.presets.some(p => p.name === preset && p.command === command)) body.preset = preset; else body.command = command;
+  let res;
+  try {
+    if (state.demo) res = Demo.sshStart(body);
+    else {
+      const r = await fetch('api/ssh/run', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-VP-Control': '1' }, body: JSON.stringify(body) });
+      res = await r.json().catch(() => ({ ok: false, error: r.status }));
+    }
+  } catch (e) { res = { ok: false, error: 'proxy unreachable' }; }
+  if (!res.ok) { alert('Not run: ' + res.error); return; }
+  state.sshOpen = new Set([res.id]);
+  await loadSsh();
+  await loadSshRun(res.id);
+  sshPoll();
+}
+// poll quickly while something is running
+function sshPoll() {
+  clearTimeout(state.sshTimer);
+  const busy = state.ssh && state.ssh.runs.some(r => !r.done);
+  if (!busy) return;
+  state.sshTimer = setTimeout(async () => {
+    await loadSsh();
+    for (const id of state.sshOpen) await loadSshRun(id);
+    sshPoll();
+  }, 1200);
+}
+$('sshRun').addEventListener('click', () => sshRun(sshTargets(), $('sshCmd').value, state.sshPreset));
+$('sshCmd').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('sshRun').click(); });
+$('sshCmd').addEventListener('input', () => { if (state.sshPreset) { state.sshPreset = null; renderSsh(); } });
+$('sshSetupBtn').addEventListener('click', () => { $('sshSetup').hidden = !$('sshSetup').hidden; });
+
 // ---------- data ----------
 async function getJSON(url) {
   const r = await fetch(url, { cache: 'no-store' });
@@ -979,6 +1224,7 @@ async function loadStats(force) {
   if (sig !== state.groupSig) { state.groupSig = sig; renderChart(); }
   renderKpis(); renderTable();
   loadPools();
+  loadSsh();
 }
 async function loadHistory() {
   $('chart').classList.add('loading');
@@ -1028,7 +1274,7 @@ bindSeg('themeSeg', 'theme', () => {
 });
 bindSeg('rangeSeg', 'range', loadHistory);
 bindSeg('metricSeg', 'metric', () => { loadHistory(); if (state.stats) { renderKpis(); renderTable(); } });
-for (const id of ['q', 'fStatus', 'fGroup', 'fMake', 'fOs', 'fTemp']) $(id).addEventListener('input', () => { renderTable(); renderChart(); });
+for (const id of ['q', 'fStatus', 'fGroup', 'fMake', 'fOs', 'fTemp']) $(id).addEventListener('input', () => { renderTable(); renderChart(); if (state.ssh && state.ssh.enabled) fillSshTargets(); });
 $('clearFilters').addEventListener('click', () => { $('q').value = ''; for (const id of ['fStatus', 'fGroup', 'fMake', 'fOs', 'fTemp']) $(id).value = ''; renderTable(); renderChart(); });
 $('plotGroups').addEventListener('click', () => {
   state.plotted = groupNames().slice(0, 6).map(n => 'g:' + n); store.set('plotted', state.plotted);
@@ -1177,7 +1423,47 @@ const Demo = (() => {
     demoPools.events.unshift(ev);
     state.pools = pools();
   }
-  return { stats, history, pools, poolAction, groupAction };
+  // remote commands demo: fake results so the panel can be tried without devices
+  const sshDemo = {
+    enabled: true, user: 'eek', port: 8022, timeoutSec: 60, allowCustom: true, proxyUser: 'pi',
+    publicKey: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDemoKeyOnlyForTheDemoPageNotARealKey0000 pi@verusproxy',
+    presets: [{ name: 'Uptime', command: 'uptime' }, { name: 'ccminer running?', command: "pgrep -af ccminer || echo 'ccminer is NOT running'" },
+      { name: 'Battery', command: 'termux-battery-status' }, { name: 'Disk & memory', command: 'df -h $HOME | tail -n 1; free -m | head -n 2' }, { name: 'Stop ccminer', command: 'pkill -f ccminer' }],
+    runs: []
+  };
+  const sshRuns = [];
+  const fakeOut = (cmd, d) => {
+    if (/uptime/.test(cmd)) return ' ' + new Date().toTimeString().slice(0, 8) + ' up ' + Math.floor((Date.now() - d.since) / 86400e3) + ' days, load average: ' + (d.cores - 0.2).toFixed(2) + ', ' + (d.cores - 0.3).toFixed(2) + ', ' + (d.cores - 0.4).toFixed(2) + '\n';
+    if (/pgrep/.test(cmd)) return (11000 + Math.floor(rnd() * 9000)) + ' ./ccminer -a verus -o stratum+tcp://192.168.1.10:8000 -u RDemo.' + d.name + ' -p x -t ' + d.cores + '\n';
+    if (/battery/.test(cmd)) return d.lvl ? '{\n  "health": "GOOD",\n  "percentage": ' + d.lvl + ',\n  "status": "CHARGING",\n  "temperature": ' + (d.bat || 33).toFixed(1) + '\n}\n' : 'no battery info\n';
+    if (/df/.test(cmd)) return '/dev/fuse        110G   31G   79G  29% /storage/emulated\n              total        used        free\nMem:           ' + d.ramMB + '        ' + Math.floor(d.ramMB * 0.62) + '        ' + Math.floor(d.ramMB * 0.2) + '\n';
+    return '';
+  };
+  function sshSummary(r) {
+    const c = { ok: 0, failed: 0, running: 0 };
+    r.targets.forEach(t => { if (t.state === 'ok') c.ok++; else if (t.state === 'running' || t.state === 'queued') c.running++; else c.failed++; });
+    return { id: r.id, t: r.t, by: 'admin', command: r.command, preset: r.preset, count: r.targets.length, ...c, done: c.running === 0 };
+  }
+  function sshInfo() { sshDemo.runs = sshRuns.map(sshSummary); return sshDemo; }
+  function sshStart(body) {
+    const command = body.command || sshDemo.presets.find(p => p.name === body.preset).command;
+    const r = { id: 'demo' + sshRuns.length, t: Date.now(), by: 'admin', command, preset: body.preset || null, targets: [] };
+    body.workers.forEach((n, i) => {
+      const d = devs.find(x => x.name === n);
+      const t = { name: n, ip: d ? d.ip : null, state: 'running', exit: null, ms: null, out: '', err: '', note: null };
+      r.targets.push(t);
+      setTimeout(() => {
+        t.ms = 300 + Math.floor(rnd() * 900);
+        if (!d || d.status === 'offline') Object.assign(t, { state: 'error', exit: 255, err: 'ssh: connect to host ' + t.ip + ' port 8022: No route to host', note: 'Device not reachable on the network.' });
+        else if (i % 9 === 4) Object.assign(t, { state: 'error', exit: 255, err: 'ssh: connect to host ' + t.ip + ' port 8022: Connection refused', note: 'Nothing listening on the SSH port: start sshd in Termux (run `sshd`).' });
+        else Object.assign(t, { state: 'ok', exit: 0, out: fakeOut(command, d) });
+      }, 400 + i * 120);
+    });
+    sshRuns.unshift(r);
+    return { ok: true, id: r.id };
+  }
+  function sshGet(id) { const r = sshRuns.find(x => x.id === id); return Object.assign({}, r, { summary: sshSummary(r) }); }
+  return { stats, history, pools, poolAction, groupAction, sshInfo, sshStart, sshGet };
 })();
 
 // ---------- boot ----------

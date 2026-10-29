@@ -23,6 +23,23 @@
     "wallet": false,
     "password": false,
 
+    "ssh": {
+        "enabled": false,
+        "user": "eek",
+        "port": 8022,
+        "identityFile": "",
+        "timeoutSec": 60,
+        "parallel": 10,
+        "allowCustomCommands": true,
+        "presets": [
+            { "name": "Uptime", "command": "uptime" },
+            { "name": "ccminer running?", "command": "pgrep -af ccminer || echo 'ccminer is NOT running'" },
+            { "name": "Battery", "command": "termux-battery-status 2>/dev/null || cat /sys/class/power_supply/battery/capacity 2>/dev/null || echo 'no battery info'" },
+            { "name": "Disk & memory", "command": "df -h $HOME | tail -n 1; free -m 2>/dev/null | head -n 2" },
+            { "name": "Stop ccminer", "command": "pkill -f ccminer && echo stopped || echo 'was not running'" }
+        ]
+    },
+
     "dashboard": {
         "enabled": true,
         "host": "0.0.0.0",

@@ -189,6 +189,38 @@ Statuses in the device table:
 
 For a backup pool in ccminer's own config, add `"time-limit": 900` to the backup entry so ccminer returns to the proxy after 15 minutes instead of staying on the backup until it fails. (`"timeout"` is a global ccminer option, not a per-pool one.)
 
+# Remote commands (SSH)
+
+Run shell commands on one device, a group, or every device shown in the table, from the dashboard, and see each device's output. It uses Termux's SSH server (port 8022) and the proxy machine's own `ssh` client.
+
+**It is off by default**, because it gives anyone who can use the dashboard a shell on every phone. To turn it on:
+
+1. Set a dashboard login, `"dashboard": { "auth": "user:a-long-password" }`. Remote commands refuse to work without one.
+2. Set `"ssh": { "enabled": true }` in `config.json` and restart the proxy.
+3. On each phone in Termux: `pkg install openssh`, `passwd` (set a password), `sshd`. To start sshd with the phone, add `sshd` to `~/.termux/boot/` (Termux:Boot app).
+4. On the proxy machine, **as the user the proxy runs as** (e.g. `pi`): `./deploy/ssh-copy-key.sh`. It creates an SSH key if there is none and installs it on every device the dashboard knows, asking each device's Termux password once. Pass IP addresses to do only some devices. The dashboard's *Setup* button also shows the public key and a one-liner to paste in Termux.
+
+Then use the **Remote commands** panel below the device table: pick the devices (*devices shown in the table*, a group, or one device; each row's *SSH* button picks that device), type a command or click a saved command, and press *Run*. You confirm the exact devices first. Results appear per device as they finish, failures first, with a plain-English hint (sshd not running, key not installed, device unreachable, timed out); *Retry failed* re-runs on just those.
+
+| `ssh` setting | default | |
+|---|---|---|
+| `enabled` | `false` | |
+| `user`, `port` | `eek`, `8022` | Termux sshd |
+| `identityFile` | `""` | private key to use; empty = the proxy user's `~/.ssh/id_ed25519` (or ecdsa/rsa) |
+| `timeoutSec` | `60` | a device's command is stopped after this |
+| `parallel` | `10` | devices worked on at the same time |
+| `allowCustomCommands` | `true` | `false` = only the saved `presets` can be run |
+| `presets` | uptime, ccminer running?, battery, disk & memory, stop ccminer | `{ "name": "...", "command": "..." }` buttons |
+
+A useful preset to add, with your own start command: `{ "name": "Restart ccminer", "command": "pkill -f ccminer; sleep 2; cd ~/ccminer && nohup ./ccminer -c config.json > miner.log 2>&1 & echo restarted" }`. Anything that should keep running after the command returns needs `nohup … &` like this, otherwise it stops when the SSH session closes.
+
+How it's kept safe:
+- Keys only. `BatchMode` means ssh never asks for or uses a password, and none is stored.
+- Devices are picked by worker name; the proxy uses the address it already knows for that device. The page can't make the proxy connect anywhere else.
+- Host keys are remembered per device (trust on first use) in `data/ssh_known_hosts`, so a phone getting a new IP from DHCP is fine, but a different phone answering on a known one is refused. If you reinstall Termux on a device, delete its line from that file.
+- Commands can only be sent from the dashboard page itself, with the login.
+- Every command is logged per device in `data/ssh-log.jsonl` (time, dashboard user, device, command, exit code, start of the output). The last 30 runs with full output survive restarts in `data/ssh-runs.json`.
+
 # Run at boot and restart when stalled (Linux / systemd)
 
 Service files are in `deploy/`. Edit `User=` and the paths in `verusproxy.service` (the example assumes user `pi` and `/home/pi/verusProxy`; `which node` shows the node path), then:
@@ -207,6 +239,7 @@ sudo systemctl enable --now verusproxy-watchdog.timer
 ### API
 
 `GET /api/health`, `GET /api/stats`, `GET /api/history?range=1h|6h|24h|7d|30d&metric=rep|eff`, `GET /api/pools`, `POST /api/report`, `POST /api/forget {"worker": "..."}`.
+Remote commands (needs `ssh.enabled`, `dashboard.auth` and header `X-VP-Control: 1`): `GET /api/ssh`, `POST /api/ssh/run {"workers": ["phone01"], "command": "uptime"}` (or `"preset": "Uptime"`), `GET /api/ssh/run?id=...`.
 Pool control (needs `dashboard.auth` and header `X-VP-Control: 1`): `POST /api/pools/switch {"index": 1}`, `POST /api/pools/auto {"enabled": true}`, `POST /api/pools/reset-preferred`.
 
 The dashboard is meant for your LAN. If you expose it to the internet, set `auth` and put it behind HTTPS.
