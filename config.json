@@ -28,6 +28,8 @@
         "user": "eek",
         "port": 8022,
         "identityFile": "",
+        "password": "",
+        "hostKeyCheck": "accept-new",
         "timeoutSec": 60,
         "parallel": 10,
         "allowCustomCommands": true,

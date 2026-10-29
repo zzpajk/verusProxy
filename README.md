@@ -236,6 +236,8 @@ Then use the **Remote commands** panel below the device table: pick the devices 
 | `enabled` | `false` | |
 | `user`, `port` | `eek`, `8022` | Termux sshd |
 | `identityFile` | `""` | private key to use; empty = the proxy user's `~/.ssh/id_ed25519` (or ecdsa/rsa) |
+| `password` | `""` | log in with this Termux password instead of a key (same password on every device). Keys are still tried first |
+| `hostKeyCheck` | `"accept-new"` | `"off"` = accept any device's host key and remember nothing |
 | `timeoutSec` | `60` | a device's command is stopped after this |
 | `parallel` | `10` | devices worked on at the same time |
 | `allowCustomCommands` | `true` | `false` = only the saved `presets` can be run |
@@ -243,7 +245,15 @@ Then use the **Remote commands** panel below the device table: pick the devices 
 
 A useful preset to add, with your own start command: `{ "name": "Restart ccminer", "command": "pkill -f ccminer; sleep 2; cd ~/ccminer && nohup ./ccminer -c config.json > miner.log 2>&1 & echo restarted" }`. Anything that should keep running after the command returns needs `nohup … &` like this, otherwise it stops when the SSH session closes.
 
-How it's kept safe:
+**Password login, no host key checks (trusted LAN only).** If you'd rather skip the key setup:
+
+```json
+"ssh": { "enabled": true, "password": "your-termux-password", "hostKeyCheck": "off" }
+```
+
+Every device needs that same Termux password (`passwd` in Termux). The password stays in `config.local.json` on the proxy: it is handed to `ssh` through a small helper (`data/ssh-askpass.sh`) and an environment variable, never on a command line, and never sent to the browser or written to the log. Make the file readable only by you: `chmod 600 config.local.json`. The trade-off: with host keys unchecked, anything on your network that answers on a phone's address gets that password. The dashboard login is still required.
+
+How it's kept safe (default settings):
 - Keys only. `BatchMode` means ssh never asks for or uses a password, and none is stored.
 - Devices are picked by worker name; the proxy uses the address it already knows for that device. The page can't make the proxy connect anywhere else.
 - Host keys are remembered per device (trust on first use) in `data/ssh_known_hosts`, so a phone getting a new IP from DHCP is fine, but a different phone answering on a known one is refused. If you reinstall Termux on a device, delete its line from that file.

@@ -1056,7 +1056,8 @@ function renderSsh() {
   const first = $('sshCard').hidden;
   $('sshCard').hidden = false;
   if (first && state.stats) renderTable();   // adds the SSH buttons to the rows
-  $('sshHint').textContent = 'Runs over SSH as ' + ss.user + '@device:' + ss.port + ' · stops after ' + ss.timeoutSec + ' s' + (ss.allowCustom ? '' : ' · saved commands only');
+  $('sshHint').textContent = 'Runs over SSH as ' + ss.user + '@device:' + ss.port + ' · ' + (ss.authMode === 'password' ? 'password login' : 'key login') +
+    (ss.hostKeyCheck === 'off' ? ' · host keys not checked' : '') + ' · stops after ' + ss.timeoutSec + ' s' + (ss.allowCustom ? '' : ' · saved commands only');
   $('sshCmd').readOnly = !ss.allowCustom;
   $('sshCmd').placeholder = ss.allowCustom ? 'Command to run in Termux, e.g. uptime' : 'Pick a saved command below';
   fillSshTargets();
@@ -1077,8 +1078,14 @@ function renderSsh() {
   su.textContent = '';
   const para = (t) => { const d = document.createElement('div'); d.textContent = t; su.appendChild(d); return d; };
   const pre = (t) => { const d = document.createElement('pre'); d.textContent = t; su.appendChild(d); return d; };
-  para('The proxy logs in with an SSH key (never a password). Each device needs the proxy\'s public key once.');
-  if (ss.publicKey) {
+  if (ss.authMode === 'password') {
+    para('Logging in with the password from ssh.password in config.local.json, so no key setup is needed. Every device needs that same Termux password (set it in Termux with `passwd`).');
+  } else {
+    para('The proxy logs in with an SSH key. Each device needs the proxy\'s public key once. (On a trusted network you can use a password instead: set ssh.password in config.local.json.)');
+  }
+  if (ss.authMode === 'password') {
+    // nothing to set up on the proxy side
+  } else if (ss.publicKey) {
     para('Easiest: on the proxy machine, as user "' + ss.proxyUser + '", run this — it asks each device\'s Termux password once:');
     pre('cd ~/verusProxy && ./deploy/ssh-copy-key.sh');
     para('Or in Termux on a device, paste:');
