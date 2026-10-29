@@ -1047,7 +1047,12 @@ function sshPick(target) {
 function renderSsh() {
   const ss = state.ssh;
   // only shown when the proxy has remote commands switched on
-  if (!ss || !ss.enabled) { $('sshCard').hidden = true; return; }
+  if (!ss || !ss.enabled) {
+    $('sshCard').hidden = true;
+    if (ss && ss.reason && !state.demo) $('footNote').textContent = ss.reason + ' See "Remote commands" in the README.';
+    return;
+  }
+  if (!state.demo) $('footNote').textContent = '';
   const first = $('sshCard').hidden;
   $('sshCard').hidden = false;
   if (first && state.stats) renderTable();   // adds the SSH buttons to the rows

@@ -23,6 +23,9 @@ config.version = "0.3.0";
 
 if (cluster.isMaster) {
     console.log(`VerusProxy v${config.version} by hellcatz`);
+    const configLib = require('./lib/config.js');
+    for (const line of configLib.summary(config)) console.log(line);
+    for (const w of config._warnings) console.log('WARNING ' + w);
 
     // fleet stats + web dashboard live in the master, fed by every worker thread
     const stats = new FleetStats(config);
