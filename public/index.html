@@ -495,7 +495,7 @@ function renderKpis() {
   $('kOnline').textContent = t.online + ' / ' + t.devices;
   $('kOnlineSub').textContent = [t.offline ? t.offline + ' offline' : 'none offline', t.idle ? t.idle + ' not mining' : '', t.elsewhere ? t.elsewhere + ' mining elsewhere' : '', t.reconnecting ? t.reconnecting + ' reconnecting' : '', t.stale ? t.stale + ' without shares' : ''].filter(Boolean).join(' · ');
   $('kAvg').textContent = t.online ? fmtH(main / t.online) : '—';
-  const hashes = s.workers.filter(w => w.status !== 'offline').map(hashOf).filter(h => h > 0);
+  const hashes = s.workers.filter(w => w.viaProxy !== false && (w.status === 'online' || w.status === 'stale')).map(hashOf).filter(h => h > 0);
   $('kAvgSub').textContent = hashes.length ? 'Range ' + fmtH(Math.min(...hashes)) + ' – ' + fmtH(Math.max(...hashes)) : '—';
   const tot = t.accepted + t.rejected;
   $('kShares').textContent = fmtInt(t.accepted);
@@ -527,6 +527,15 @@ function shareBasis(n, spanSec, fallbackSec) {
   if (n === undefined || n === null) return 'over ' + Math.round(fallbackSec / 60) + ' min of shares';
   if (!n) return 'no shares yet';
   return n.toLocaleString() + ' share' + (n === 1 ? '' : 's') + ' in ' + Math.max(1, Math.round(spanSec / 60)) + ' min · ±' + Math.round(100 / Math.sqrt(n)) + '%';
+}
+// a device mining on another pool still shows its speed, but it isn't part of the proxy's totals
+function repCell(tr, w) {
+  const td = cell(tr, fmtH(w.repHashrate), 'num');
+  if (w.viaProxy === false && w.repHashrate) {
+    td.style.color = css('--muted');
+    td.title = 'Not counted in the totals: this device is not mining through the proxy' + (w.minerPoolUrl ? ' (it is on ' + w.minerPoolUrl + ')' : '');
+  }
+  return td;
 }
 function poolSideCell(tr, w) {
   const n = w.effShares;
@@ -645,8 +654,8 @@ function renderTable() {
           cell(tr, parts.length ? parts.join(' · ') : null, 'num'); break;
         }
         case 'load': cell(tr, w.load !== null && w.load !== undefined ? w.load.toFixed(2) : null, 'num'); break;
-        case 'hash': state.metric === 'rep' ? cell(tr, fmtH(w.repHashrate), 'num') : poolSideCell(tr, w); break;
-        case 'other': state.metric === 'rep' ? poolSideCell(tr, w) : cell(tr, fmtH(w.repHashrate), 'num'); break;
+        case 'hash': if (state.metric === 'rep') repCell(tr, w); else poolSideCell(tr, w); break;
+        case 'other': if (state.metric === 'rep') poolSideCell(tr, w); else repCell(tr, w); break;
         case 'perCore': cell(tr, fmtH(c.val(w)), 'num'); break;
         case 'threads': cell(tr, w.threads ? w.threads.length : null, 'num'); break;
         case 'shares': cell(tr, fmtInt(w.accepted), 'num'); break;
@@ -767,7 +776,7 @@ function groupTotals() {
     const g = by.get(w.group);
     g.devices++;
     if (w.status === 'online' || w.status === 'stale' || w.status === 'reconnecting') g.online++;
-    g.hash += hashOf(w) || 0;
+    if (w.viaProxy !== false) g.hash += hashOf(w) || 0;   // only what mines through the proxy
   }
   return by;
 }
@@ -916,7 +925,7 @@ function sumSeries(h, names) {
 function chartSeries() {
   const h = state.history; if (!h) return [];
   const totals = state.showTotals || state.plotted.length === 0;
-  const out = totals ? [{ name: 'All devices', color: css('--s1'), values: h.total, width: 2.5 }] : [];
+  const out = totals ? [{ name: 'All devices on the proxy', color: css('--s1'), values: h.total, width: 2.5 }] : [];
   const f = filters();
   if (totals && filterActive(f)) {
     const names = new Set(filtered().map(w => w.name));
