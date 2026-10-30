@@ -605,6 +605,9 @@ function renderTable() {
           const td = cell(tr, dot(v, l, 'status'));
           if (w.status === 'elsewhere') td.title = 'ccminer is running but not connected to this proxy' + (w.minerPoolUrl ? ': it is on ' + w.minerPoolUrl : '') + '. Usually it failed over to its backup pool.';
           else if (w.status === 'reconnecting') td.title = 'Disconnected less than a minute ago; ccminer normally reconnects within seconds.';
+          else if (w.status === 'stale') td.title = 'No accepted share for ' + fmtDur((state.stats.time - Math.max(w.lastShare || 0, w.connectedSince || 0)) / 1000) +
+            (w.expectedShareSec ? '; this device normally finds one about every ' + fmtDur(w.expectedShareSec) + '. Check ccminer on it.' : '. Check ccminer on it.');
+          else if (w.status === 'online' && w.expectedShareSec) td.title = 'Finds a share about every ' + fmtDur(w.expectedShareSec) + ' on average (it varies a lot)';
           else if (w.status === 'idle') td.title = 'Added by hand. The device answers on its SSH port, but is not mining through this proxy.';
           else if (w.status === 'offline') td.title = (w.manual ? 'Added by hand. No answer on its SSH port or ccminer API' : 'Not connected and ccminer not reachable') + (w.lastSeen ? ' · last seen ' + fmtAgo(w.lastSeen, state.stats.time) : '');
           break;

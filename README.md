@@ -232,7 +232,7 @@ Statuses in the device table:
 |---|---|
 | Online | connected to the proxy |
 | Reconnecting | disconnected less than a minute ago |
-| No shares | connected, but no accepted share for `staleAfterSec` |
+| No shares | connected, but no accepted share for much longer than this device normally needs: 6× its average time between shares (hover the status to see it), and at least `staleAfterSec`. The pool's share difficulty is set for the whole fleet, so a single phone can easily go several minutes without a share; that alone isn't flagged |
 | Mining elsewhere | not connected, but its ccminer API answers and says it's on another pool (usually its backup pool) — hover for the pool |
 | Offline | not connected and ccminer not reachable |
 
