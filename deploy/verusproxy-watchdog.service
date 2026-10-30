@@ -1,10 +1,10 @@
 # /etc/systemd/system/verusproxy-watchdog.service
 # Restarts verusProxy if it is running but stalled (health check fails twice, 20 s apart).
-# Edit the path if verusProxy isn't in /home/pi/verusProxy.
+# Set WorkingDirectory to your verusProxy folder (the one with proxy.js).
 [Unit]
 Description=Restart verusProxy if stalled
 
 [Service]
 Type=oneshot
 WorkingDirectory=/home/pi/verusProxy
-ExecStart=/bin/sh -c 'node deploy/healthcheck.js || { sleep 20; node deploy/healthcheck.js; } || { echo "verusProxy stalled, restarting"; systemctl restart verusproxy; }'
+ExecStart=/bin/sh -c 'if [ ! -f deploy/healthcheck.js ]; then echo "watchdog: deploy/healthcheck.js not found in $(pwd): set WorkingDirectory to your verusProxy folder. Not restarting anything."; exit 0; fi; node deploy/healthcheck.js || { sleep 20; node deploy/healthcheck.js; } || { echo "verusProxy stalled, restarting"; systemctl restart verusproxy; }'
