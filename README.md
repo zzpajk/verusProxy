@@ -289,6 +289,27 @@ How it's kept safe (default settings):
 - Commands can only be sent from the dashboard page itself, with the login.
 - Every command is logged per device in `data/ssh-log.jsonl` (time, dashboard user, device, command, exit code, start of the output). The last 30 runs with full output survive restarts in `data/ssh-runs.json`.
 
+# Rejected shares
+
+The device table's **Reject % (1 h)** and the **Shares** card show the last hour, with each reject sorted by what happened just before it (hover for the breakdown and the pool's own reason):
+
+| Cause | What it means | What helps |
+|---|---|---|
+| after a difficulty change | found just before the pool raised the share difficulty | a fixed difficulty (below) |
+| after a reconnect | work from before a reconnect / new extranonce is void | a stable proxy and network; avoid restarts |
+| right after a new block | stale: still working on the previous block | normal, a few per block; nothing to do |
+| lost connection | the pool connection dropped before it answered | pool / network stability |
+| other | none of the above: often a hot or throttling phone, or ccminer itself | check temperature, fewer threads (`-t`) |
+
+**Fixed difficulty on luckpool.** All devices share the proxy's single pool connection, and luckpool adjusts its difficulty ("vardiff"); every change can reject shares that were in flight. luckpool accepts the difficulty in the password: `d=16384` sets a minimum, `d=16384S` makes it fixed. Set it for the whole proxy in `config.local.json` (the pool login then always uses your wallet and this password):
+
+```json
+"wallet": "RYourAddress",
+"password": "d=16384S"
+```
+
+Pick a value close to what vardiff settles on (ccminer logs it as "Stratum difficulty set to …"); higher means fewer, bigger shares. The Pools panel shows how often the difficulty changed in the last hour.
+
 # Run at boot and restart when stalled (Linux / systemd)
 
 Service files are in `deploy/`. Edit `User=` and the paths in `verusproxy.service` (the example assumes user `pi` and `/home/pi/verusProxy`; `which node` shows the node path), then:

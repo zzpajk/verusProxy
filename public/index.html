@@ -397,7 +397,7 @@ const COLS = [
   { key: 'perCore', label: 'Per core', num: true, val: w => { const h = hashOf(w); return h && w.cores ? h / w.cores : null; } },
   { key: 'threads', label: 'Threads', num: true, val: w => w.threads ? w.threads.length : null },
   { key: 'shares', label: 'Accepted', num: true, val: w => w.accepted },
-  { key: 'rej', label: 'Reject %', num: true, val: w => (w.accepted + w.rejected) ? w.rejected / (w.accepted + w.rejected) : null },
+  { key: 'rej', label: 'Reject % (1 h)', num: true, val: w => rejRate(w.accepted1h, w.rejected1h) },
   { key: 'minerShares', label: 'ccminer A/R', num: true, val: w => w.minerAccepted },
   { key: 'software', label: 'Miner', val: w => w.software || '' },
   { key: 'ping', label: 'Ping ms', num: true, val: w => w.ping },
@@ -499,7 +499,16 @@ function renderKpis() {
   $('kAvgSub').textContent = hashes.length ? 'Range ' + fmtH(Math.min(...hashes)) + ' – ' + fmtH(Math.max(...hashes)) : '—';
   const tot = t.accepted + t.rejected;
   $('kShares').textContent = fmtInt(t.accepted);
-  $('kSharesSub').textContent = tot ? fmtInt(t.rejected) + ' rejected (' + (100 * t.rejected / tot).toFixed(2) + '%)' : 'No shares yet';
+  // the last hour says more than all-time counts (which include any past restarts)
+  if (t.accepted1h !== undefined) {
+    const r1 = rejRate(t.accepted1h, t.rejected1h);
+    const main = Object.entries(t.rejCauses1h || {}).sort((a, b) => b[1] - a[1])[0];
+    $('kSharesSub').textContent = 'Last hour: ' + fmtInt(t.rejected1h) + ' rejected' + (r1 !== null ? ' (' + (r1 * 100).toFixed(1) + '%)' : '') +
+      (main && t.rejected1h ? ' · mostly ' + REJECT_CAUSE[main[0]][0] : '');
+    $('kSharesSub').title = rejectExplain(t.rejected1h, t.rejCauses1h) + '\nAll-time: ' + fmtInt(t.rejected) + ' rejected of ' + fmtInt(tot);
+  } else {
+    $('kSharesSub').textContent = tot ? fmtInt(t.rejected) + ' rejected (' + (100 * t.rejected / tot).toFixed(2) + '%)' : 'No shares yet';
+  }
   $('kTemp').textContent = t.avgTemp !== null ? t.avgTemp.toFixed(1) + ' °C avg' : '—';
   const hot = s.workers.filter(w => w.status !== 'offline' && w.cpuTemp !== null).sort((a, b) => b.cpuTemp - a.cpuTemp)[0];
   $('kTempSub').textContent = hot ? 'Hottest ' + hot.name + ' at ' + hot.cpuTemp.toFixed(0) + ' °C' : 'No temperature data yet';
@@ -509,6 +518,28 @@ function renderKpis() {
   if (li && li.viaForm) $('logout').textContent = 'Log out' + (li.user ? ' (' + li.user + ')' : '');
   $('poolInfo').textContent = s.pool ? 'Mining on ' + s.pool + ' · proxy up ' + fmtDur((now - s.startedAt) / 1000) : '';
   if (s.stratumLagSec > 15) $('poolInfo').textContent += ' · ⚠ no update from the stratum process for ' + s.stratumLagSec + ' s, statuses may be out of date';
+}
+
+// ---------- rejects ----------
+const REJECT_CAUSE = {
+  difficulty: ['after a difficulty change', 'found just before the pool raised the share difficulty'],
+  reconnect: ['after a reconnect', 'work from before a reconnect (new extranonce) is void'],
+  newblock: ['right after a new block', 'stale: still on the previous block'],
+  lost: ['lost connection', 'never answered: the pool connection dropped'],
+  local: ['refused by the proxy', 'no pool connection at that moment'],
+  other: ['other', 'no recent difficulty change, reconnect or block: often a hot or unstable device, or ccminer']
+};
+function rejRate(acc, rej) { return (acc || 0) + (rej || 0) ? (rej || 0) / ((acc || 0) + (rej || 0)) : null; }
+function rejectExplain(n, causes, reasons) {
+  if (!n) return 'No rejected shares in the last hour.';
+  const lines = ['Rejected in the last hour: ' + n];
+  for (const [k, c] of Object.entries(causes || {}).sort((a, b) => b[1] - a[1])) {
+    const d = REJECT_CAUSE[k] || [k, ''];
+    lines.push('  ' + c + ' ' + d[0] + (d[1] ? ' (' + d[1] + ')' : ''));
+  }
+  const rs = Object.entries(reasons || {}).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  if (rs.length) lines.push('Pool said: ' + rs.map(([r, c]) => r + ' ×' + c).join(', '));
+  return lines.join('\n');
 }
 
 // ---------- table ----------
@@ -659,7 +690,14 @@ function renderTable() {
         case 'perCore': cell(tr, fmtH(c.val(w)), 'num'); break;
         case 'threads': cell(tr, w.threads ? w.threads.length : null, 'num'); break;
         case 'shares': cell(tr, fmtInt(w.accepted), 'num'); break;
-        case 'rej': { const v = c.val(w); cell(tr, v === null ? null : (v * 100).toFixed(2) + '%', 'num'); break; }
+        case 'rej': {
+          const v = c.val(w);
+          const td = cell(tr, v === null ? null : (v * 100).toFixed(1) + '%', 'num');
+          td.title = rejectExplain(w.rejected1h, w.rejCauses1h, w.rejReasons) +
+            '\nAll-time: ' + fmtInt(w.rejected) + ' rejected of ' + fmtInt(w.accepted + w.rejected) + (w.accepted + w.rejected ? ' (' + (100 * w.rejected / (w.accepted + w.rejected)).toFixed(1) + '%)' : '');
+          if (v !== null && v >= 0.05) td.style.color = css('--critical');
+          break;
+        }
         case 'minerShares': cell(tr, w.minerAccepted !== null && w.minerAccepted !== undefined ? fmtInt(w.minerAccepted) + ' / ' + fmtInt(w.minerRejected) : null, 'num'); break;
         case 'software': cell(tr, w.software); break;
         case 'ping': cell(tr, w.ping, 'num'); break;
@@ -1124,7 +1162,15 @@ function renderPools() {
     cell(tr, isActive || p.hashrate > 0 ? fmtH(p.hashrate) : null, 'num');
     cell(tr, fmtInt(p.accepted), 'num');
     cell(tr, fmtInt(p.rejected), 'num');
-    cell(tr, p.lastJob ? fmtAgo(p.lastJob, now) : null, 'num');
+    const lj = cell(tr, p.lastJob ? fmtAgo(p.lastJob, now) : null, 'num');
+    if (isActive && p.hashesPerShare && p.hashrate) {
+      lj.title = 'The fleet finds a share about every ' + fmtDur(p.hashesPerShare / p.hashrate) + '. Share difficulty changed ' + (p.difficultyChanges1h || 0) + ' times in the last hour.';
+    }
+    if (isActive && p.difficultyChanges1h !== undefined) {
+      const dc = document.createElement('div'); dc.className = 'dim'; dc.style.fontSize = '12px';
+      dc.textContent = 'difficulty changed ' + p.difficultyChanges1h + '× in 1 h';
+      lj.appendChild(dc);
+    }
     const errTd = cell(tr, p.lastError ? p.lastError + (p.lastErrorAt ? ' · ' + fmtAgo(p.lastErrorAt, now) : '') : '', 'err');
     if (p.lastError) errTd.title = p.lastError;
     const actTd = cell(tr, '');
