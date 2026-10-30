@@ -170,7 +170,7 @@ Options (environment variables): `WORKER=phone01` (otherwise taken from ccminer'
 |---|---|---|
 | `enabled` | `true` | |
 | `host`, `port` | `0.0.0.0`, `8080` | |
-| `auth` | `""` | `"user:password"` to require a login for the dashboard |
+| `auth` | `""` | `"user:password"` to require a login for the dashboard: a login page, then you stay logged in for 30 days in that browser (*Log out* in the header). Works in in-app/built-in browsers too. Scripts can send it as HTTP Basic auth (`curl -u user:password`). Five wrong passwords lock that address out for a minute. Changing `auth` logs everyone out |
 | `reportToken` | `""` | if set, agents must send the same `TOKEN` |
 | `hashrateWindowSec` | `600` | averaging window for pool-side hashrate |
 | `staleAfterSec` | `300` | connected but no accepted share for this long → "No shares" |
