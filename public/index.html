@@ -265,6 +265,31 @@ td .dupe { color: var(--serious); font-weight: 400; font-size: 12px; margin-left
 .find .bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; font-size: 13px; color: var(--ink-2); }
 .find .bar select { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 0; box-shadow: inset 0 0 0 1px var(--ring); border-radius: 8px; height: 28px; padding: 0 6px; max-width: 160px; }
 .find .sep { border-top: 1px solid var(--grid); margin: 12px 0 8px; }
+/* miner versions */
+.mv-card { margin-top: 12px; padding: 14px 16px 12px; }
+.mv-src { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 13px; color: var(--ink-2); margin-bottom: 8px; }
+.mv-src .commit { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--ink); }
+.mv-src .msg { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 520px; }
+.mv-fleet { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 12px; }
+.mv-fleet .chip { cursor: default; }
+.mv-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.mv-form select { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 0; box-shadow: inset 0 0 0 1px var(--ring); border-radius: 8px; height: 32px; padding: 0 10px; max-width: 300px; }
+.mv-form label { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+.mv-help { color: var(--muted); font-size: 12.5px; margin: 6px 0 0; line-height: 1.45; }
+.mv-lib { margin-top: 14px; }
+.mv-lib h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; margin: 0 0 4px; }
+.mv-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 6px 2px; border-top: 1px solid var(--grid); font-size: 13px; }
+.mv-row .lbl { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-row .meta { grid-column: 1; color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mv-row .act { grid-row: 1 / 3; grid-column: 2; display: flex; gap: 4px; }
+.mv-add { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.mv-add input { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 0; box-shadow: inset 0 0 0 1px var(--ring); border-radius: 8px; height: 30px; padding: 0 10px; flex: 1 1 240px; min-width: 0; }
+.mv-add select { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 0; box-shadow: inset 0 0 0 1px var(--ring); border-radius: 8px; height: 30px; padding: 0 8px; max-width: 200px; }
+.mv-out { font-size: 12.5px; margin-top: 6px; min-height: 1em; color: var(--ink-2); }
+.mv-out.bad { color: var(--critical); }
+.mvb { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.mvb i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: none; }
+.mvb .c { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
 </style>
 </head>
 <body>
@@ -364,6 +389,27 @@ td .dupe { color: var(--serious); font-weight: 400; font-size: 12px; margin-left
     <div class="ssh-presets" id="sshPresets"></div>
     <div class="ssh-runs" id="sshRuns"></div>
   </section>
+  <section class="card mv-card" id="mvCard" hidden>
+    <div class="ssh-head">
+      <h2>Miner versions</h2>
+      <span class="hint" id="mvHint"></span>
+      <span class="spacer"></span>
+      <button class="btn small" id="mvCheckAll" title="Ask every device shown in the table which miner it has">Check devices</button>
+    </div>
+    <div class="mv-src" id="mvSrc"></div>
+    <div class="mv-fleet" id="mvFleet"></div>
+    <div class="mv-form">
+      <select id="mvTarget" aria-label="Devices"></select>
+      <select id="mvAction" aria-label="What to do"></select>
+      <select id="mvPort" aria-label="Through" hidden></select>
+      <label title="Stop the running miner and start the new one the same way it was started (same command line, folder and screen session)"><input type="checkbox" id="mvRestart" checked> Restart miner</label>
+      <label id="mvPauseL" title="Builds go much faster without the miner using every core; mining starts again after the build, also if it fails"><input type="checkbox" id="mvPause"> Pause mining while building</label>
+      <button class="btn" id="mvGo">Start</button>
+    </div>
+    <p class="mv-help" id="mvHelp"></p>
+    <div class="mv-lib" id="mvLib"></div>
+    <div class="ssh-runs" id="mvJobs"></div>
+  </section>
   <p class="note" id="footNote"></p>
 </div>
 <div class="scrim" id="scrim"></div>
@@ -424,7 +470,7 @@ const state = {
 // columns added in a later version start hidden if they are hidden by default
 (() => {
   const seen = store.get('colsSeen', null);
-  const all = ['plot','status','name','group','make','model','soc','os','root','access','kernel','arch','cores','freq','ram','storage','temp','battery','load','hash','other','perCore','threads','shares','rej','minerShares','software','termux','userland','ping','ip','address','uptime','lastShare','info','notes','firstSeen','action'];
+  const all = ['plot','status','name','group','make','model','soc','os','root','access','kernel','arch','cores','freq','ram','storage','temp','battery','load','hash','other','perCore','threads','shares','rej','minerShares','software','minerver','termux','userland','ping','ip','address','uptime','lastShare','info','notes','firstSeen','action'];
   if (seen) {
     const fresh = all.filter(k => !seen.includes(k) && DEFAULT_HIDDEN.includes(k) && !state.hiddenCols.includes(k));
     if (fresh.length) { state.hiddenCols = state.hiddenCols.concat(fresh); store.set('hiddenCols', state.hiddenCols); }
@@ -462,6 +508,7 @@ const COLS = [
   { key: 'rej', label: 'Reject % (1 h)', num: true, val: w => rejRate(w.accepted1h, w.rejected1h) },
   { key: 'minerShares', label: 'ccminer A/R', num: true, val: w => w.minerAccepted },
   { key: 'software', label: 'Miner', val: w => w.software || '' },
+  { key: 'minerver', label: 'Miner build', val: w => minerLabel(w) || null },
   { key: 'termux', label: 'Termux', val: w => w.termux || '' },
   { key: 'userland', label: 'UserLAnd', val: w => w.userland || '' },
   { key: 'ping', label: 'Ping ms', num: true, val: w => w.ping },
@@ -782,6 +829,7 @@ function renderTable() {
         }
         case 'access': cell(tr, accessBadges(w)); break;
         case 'storage': cell(tr, w.dataFreeMB ? (w.dataFreeMB / 1024).toFixed(1) + ' GB' : null, 'num'); break;
+        case 'minerver': { const b = minerBadge(w); const td = cell(tr, b ? b.el : null); if (b) td.title = b.title; break; }
         case 'termux': cell(tr, w.termux); break;
         case 'userland': cell(tr, w.userland); break;
         case 'info': {
@@ -1633,6 +1681,7 @@ async function loadStats(force) {
   if ($('findmenu').classList.contains('open') && !$('findPanel').contains(document.activeElement)) renderFindPanel();
   loadPools();
   loadSsh();
+  loadMiner().then(minerPoll);
 }
 async function loadHistory() {
   $('chart').classList.add('loading');
@@ -1796,6 +1845,41 @@ function renderDrawer() {
   ]));
   if (!w.inv && !w.agentSeen) { const x = document.createElement('div'); x.className = 'dr-msg'; x.textContent = adbOn ? 'No device info yet: it is read over ADB once the phone accepts the connection.' : 'Device info is read over ADB, which is off.'; d.appendChild(x); }
 
+  // miner program on the phone
+  const mi = state.miner;
+  if (mi && mi.enabled) {
+    const b = w.minerBin;
+    const hm = document.createElement('h3'); hm.textContent = 'Miner program' + (b && b.ts ? ' · checked ' + fmtAgo(b.ts, now) : ''); d.appendChild(hm);
+    if (b && b.error && !b.sha) { const x = document.createElement('div'); x.className = 'dr-msg bad'; x.textContent = b.error; d.appendChild(x); }
+    if (b && (b.sha || b.path)) {
+      const badge = minerBadge(w);
+      d.appendChild(factList([
+        ['Build', badge ? badge.el : null],
+        ['Program', b.path, true],
+        ['Running', b.running ? 'Yes' + (b.screen ? ', in screen session ' + b.screen : ', in the background') + (b.started ? ' · since ' + fmtAgo(b.started, Date.now()).replace(' ago', '') : '') : 'No'],
+        ['Command', b.cmd, true],
+        ['Code path', b.variant],
+        ['Checksum', b.sha ? b.sha.slice(0, 16) + '…' : 'no program at this path', true],
+        ['Previous', b.old ? 'kept (' + (libLabel(b.old) || b.old.slice(0, 12)) + ') — Roll back puts it back' : null],
+        ['System', b.env ? b.env.replace('linux:', 'Linux ') + (b.arch ? ' · ' + b.arch : '') : null]
+      ]));
+    } else if (!b) { const x = document.createElement('div'); x.className = 'dr-msg'; x.textContent = 'Not checked yet.'; d.appendChild(x); }
+    if (b && b.building) { const x = document.createElement('div'); x.className = 'dr-warn'; x.textContent = 'Building on the phone: ' + (b.building.msg || b.building.phase) + (b.building.since ? ' (started ' + fmtAgo(b.building.since, Date.now()) + ')' : ''); d.appendChild(x); }
+    const ma = document.createElement('div'); ma.className = 'dr-actions';
+    const mb = (label, title, fn) => { const x = document.createElement('button'); x.className = 'btn small'; x.textContent = label; x.title = title; x.addEventListener('click', fn); ma.appendChild(x); };
+    const go = async (action, extra, confirmText) => {
+      if (confirmText && !confirm(confirmText)) return;
+      state.drawerMsg = { text: 'Starting…' }; renderDrawer();
+      const r = await minerPost(action, Object.assign({ workers: [w.name], restart: true }, extra || {}));
+      state.drawerMsg = r.ok ? { text: action === 'check' ? 'Checking…' : 'Started: progress under Miner versions.' } : { text: r.error, bad: true };
+      renderDrawer(); if (r.ok) { state.mvOpen = new Set([r.id]); await loadMiner(); loadMinerJob(r.id); minerPoll(); }
+    };
+    mb('Check', 'Read which miner this device has and how it runs', () => go('check'));
+    mb('Build newest', 'Build ' + mi.branch + (mi.latest ? ' ' + mi.latest.commit.slice(0, 7) : '') + ' from source on this phone and install it', () => go('build', {}, 'Build the newest ' + mi.branch + ' on ' + w.name + ' and install it? This takes several minutes; the miner keeps running meanwhile and is restarted with the new build.'));
+    if (b && b.old) mb('Roll back', 'Put the previous miner back', () => go('rollback', {}, 'Put the previous miner back on ' + w.name + ' and restart it?'));
+    d.appendChild(ma);
+  }
+
   // notes
   const h6 = document.createElement('h3'); h6.textContent = 'Notes'; d.appendChild(h6);
   const ta = document.createElement('textarea'); ta.value = state.drawerNotes !== null && state.drawerNotes !== undefined ? state.drawerNotes : (w.notes || '');
@@ -1811,6 +1895,268 @@ function renderDrawer() {
   nb.appendChild(save);
   d.append(ta, nb);
 }
+
+// ---------- miner versions ----------
+state.mvOpen = new Set();
+state.mvFull = {};
+function libLabel(sha) { const b = state.miner && state.miner.library.find(x => x.sha256 === sha); return b ? b.label : null; }
+// short name for the miner a device has: branch + commit when known, else the proxy's label, else the checksum
+function minerLabel(w) {
+  const b = w.minerBin; if (!b || !b.sha) return null;
+  if (b.build && b.build.commit) return (b.build.branch ? b.build.branch + ' ' : '') + b.build.commit.slice(0, 7);
+  return libLabel(b.sha) || 'unknown ' + b.sha.slice(0, 7);
+}
+function minerBadge(w) {
+  const b = w.minerBin; if (!b) return null;
+  if (!b.sha) return b.error ? { el: dot('--axis', 'not checked', 'mvb'), title: b.error } : { el: dot('--axis', 'none found', 'mvb'), title: 'No miner at ' + (b.path || '?') };
+  const latest = state.miner && state.miner.latest;
+  const commit = b.build && b.build.commit;
+  const isNew = latest && commit && latest.commit === commit && (!b.build.branch || b.build.branch === latest.branch);
+  const color = isNew ? '--good' : commit ? '--warning' : '--axis';
+  const sp = dot(color, '', 'mvb');
+  const c = document.createElement('span'); c.className = commit ? 'c' : ''; c.textContent = minerLabel(w) + (isNew ? ' · newest' : commit && latest ? ' · update' : '');
+  sp.appendChild(c);
+  if (!b.running) { const x = document.createElement('span'); x.className = 'dim'; x.textContent = ' not running'; sp.appendChild(x); }
+  const title = [b.path, b.running ? 'running' + (b.screen ? ' in screen ' + b.screen : '') : 'not running', b.variant ? 'code path: ' + b.variant : null,
+    isNew ? 'newest ' + latest.branch + ' commit' : commit && latest ? 'newer commit available: ' + latest.commit.slice(0, 7) : 'built elsewhere (commit unknown)'].filter(Boolean).join(' · ');
+  return { el: sp, title };
+}
+async function minerPost(action, body) {
+  if (state.demo) return Demo.minerAction(action, body || {});
+  try {
+    const r = await fetch('api/miner/' + action, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-VP-Control': '1' }, body: JSON.stringify(body || {}) });
+    return await r.json().catch(() => ({ ok: false, error: 'HTTP ' + r.status }));
+  } catch (e) { return { ok: false, error: 'proxy unreachable' }; }
+}
+async function loadMiner() {
+  try { state.miner = state.demo ? Demo.minerInfo() : await getJSON('api/miner'); } catch (e) { return; }
+  renderMiner();
+}
+async function loadMinerJob(id) {
+  try { state.mvFull[id] = state.demo ? Demo.minerJob(id) : await getJSON('api/miner/job?id=' + encodeURIComponent(id)); } catch (e) {}
+  renderMinerJobs();
+}
+function minerPoll() {
+  clearTimeout(state.mvTimer);
+  if (!state.miner || !state.miner.jobs.some(j => !j.done)) return;
+  const building = state.miner.jobs.some(j => !j.done && j.action === 'build');
+  const running = new Set(state.miner.jobs.filter(j => !j.done).map(j => j.id));
+  state.mvTimer = setTimeout(async () => {
+    await loadMiner();
+    for (const id of state.mvOpen) await loadMinerJob(id);
+    // a job just finished: show the new versions in the table right away
+    if (state.miner.jobs.some(j => running.has(j.id) && j.done)) { if (state.demo) state.stats = Demo.stats(); await loadStats(true); return; }
+    // while it runs, results come in device by device: refresh the table every few seconds
+    if (!state.demo && Date.now() - state.lastOk > 4000) { await loadStats(true); return; }
+    minerPoll();
+  }, building ? 5000 : 1500);
+}
+function mvTargets() {
+  const v = $('mvTarget').value, ws = state.stats ? state.stats.workers : [];
+  if (v === 'shown') return filtered().map(w => w.name);
+  if (v === 'old') return ws.filter(w => { const b = w.minerBin; const l = state.miner.latest; return b && b.sha && !(l && b.build && b.build.commit === l.commit); }).map(w => w.name);
+  if (v.startsWith('g:')) return ws.filter(w => w.group === v.slice(2)).map(w => w.name);
+  if (v.startsWith('d:')) return [v.slice(2)];
+  return [];
+}
+function fillOptions(sel, opts, keep) {
+  const sig = opts.map(o => o.join('=')).join('|');
+  if (sel.dataset.sig === sig) return;
+  const cur = sel.value;
+  sel.dataset.sig = sig; sel.textContent = '';
+  for (const [v, t] of opts) { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); }
+  sel.value = opts.some(o => o[0] === cur) ? cur : (keep && opts.some(o => o[0] === keep) ? keep : opts[0][0]);
+}
+function renderMiner() {
+  const mi = state.miner;
+  if (!mi || !mi.enabled) { $('mvCard').hidden = true; return; }
+  const first = $('mvCard').hidden;
+  $('mvCard').hidden = false;
+  if (first && state.stats) renderTable();
+  const repo = mi.repo.replace(/^https:\/\/github\.com\//, '').replace(/\.git$/, '');
+  const portName = (mi.ports.find(p => p.port === Number($('mvPort').value || mi.port)) || { name: 'SSH' }).name;
+  $('mvHint').textContent = 'Over ' + portName + ' SSH · source ' + repo + ' @ ' + mi.branch;
+  // newest commit
+  const src = $('mvSrc'); src.textContent = '';
+  const l = mi.latest;
+  src.appendChild(document.createTextNode('Newest on ' + mi.branch + ':'));
+  if (l && l.commit) {
+    const c = document.createElement('span'); c.className = 'commit'; c.textContent = l.commit.slice(0, 7); src.appendChild(c);
+    if (l.date) src.appendChild(document.createTextNode(fmtAgo(l.date, Date.now())));
+    if (l.message) { const m = document.createElement('span'); m.className = 'msg'; m.textContent = '“' + l.message + '”'; m.title = l.message; src.appendChild(m); }
+  } else src.appendChild(document.createTextNode(l && l.error ? l.error : 'not looked up yet'));
+  const rb = document.createElement('button'); rb.className = 'linkbtn'; rb.textContent = 'Refresh'; rb.title = 'Look up the newest commit again';
+  rb.addEventListener('click', async () => { rb.disabled = true; await minerPost('latest', {}); await loadMiner(); if (state.stats) renderTable(); });
+  src.appendChild(rb);
+  // what the fleet runs
+  const fl = $('mvFleet'); fl.textContent = '';
+  const ws = state.stats ? state.stats.workers : [];
+  const counts = new Map(); let unchecked = 0, none = 0;
+  for (const w of ws) { const lab = minerLabel(w); if (lab) counts.set(lab, (counts.get(lab) || 0) + 1); else if (w.minerBin && w.minerBin.ts && !w.minerBin.error) none++; else unchecked++; }
+  const newest = l && l.commit ? mi.branch + ' ' + l.commit.slice(0, 7) : null;
+  for (const [lab, n] of [...counts.entries()].sort((a, b) => b[1] - a[1])) {
+    const ch = document.createElement('span'); ch.className = 'chip'; ch.appendChild(dot(lab === newest ? '--good' : '--warning', lab + (lab === newest ? ' (newest)' : '') + ': ' + n, 'mvb')); fl.appendChild(ch);
+  }
+  if (none) { const ch = document.createElement('span'); ch.className = 'chip'; ch.textContent = 'no miner found: ' + none; fl.appendChild(ch); }
+  if (unchecked) { const ch = document.createElement('span'); ch.className = 'chip'; ch.textContent = 'not checked: ' + unchecked; ch.title = 'Not reachable over SSH yet, or never checked. Devices are checked every hour.'; fl.appendChild(ch); }
+  // form
+  const opts = [['shown', 'Devices shown in the table (' + filtered().length + ')']];
+  const oldN = ws.filter(w => { const b = w.minerBin; return b && b.sha && !(l && b.build && b.build.commit === l.commit); }).length;
+  if (l && l.commit) opts.push(['old', 'Devices not on the newest build (' + oldN + ')']);
+  for (const g of groupNames()) opts.push(['g:' + g, 'Group: ' + g + ' (' + ws.filter(w => w.group === g).length + ')']);
+  for (const w of ws.slice().sort((a, b) => a.name.localeCompare(b.name))) opts.push(['d:' + w.name, 'Device: ' + w.name]);
+  fillOptions($('mvTarget'), opts, state.mvPendingTarget); state.mvPendingTarget = null;
+  const acts = [['build', 'Build newest ' + mi.branch + (l && l.commit ? ' (' + l.commit.slice(0, 7) + ')' : '') + ' on each phone']];
+  for (const b of mi.library) acts.push(['install:' + b.sha256, 'Install: ' + b.label]);
+  acts.push(['rollback', 'Roll back to the previous miner'], ['check', 'Check which miner they have']);
+  fillOptions($('mvAction'), acts);
+  fillOptions($('mvPort'), mi.ports.map(p => [String(p.port), p.name + ' SSH (' + p.port + ')']), String(mi.port));
+  $('mvPort').hidden = mi.ports.length < 2;
+  const act = $('mvAction').value;
+  $('mvPauseL').hidden = act !== 'build';
+  $('mvRestart').parentElement.hidden = act === 'check';
+  $('mvHelp').textContent = act === 'build' ? 'Each phone gets the newest ' + mi.branch + ' source and builds it with the fork\'s build-verus.sh (installs clang and the build tools the first time; several minutes). The result is checked, the old miner kept as .old, and the miner restarted the way it was running. Or build on one phone, then "Copy from a device" below and install that on the rest.'
+    : act.startsWith('install:') ? 'The proxy sends this binary to each phone, checks it runs there (wrong libraries or CPU type are caught before anything is replaced), keeps the old miner as .old and restarts the miner the way it was running. If the new one does not stay up for 12 s, the old one is put back automatically.'
+    : act === 'rollback' ? 'Swaps the miner with the .old copy kept by the last install, and restarts it.'
+    : 'Reads which miner each device has, where, and how it is started. Also runs by itself every hour.';
+  renderMinerLib();
+  renderMinerJobs();
+}
+function renderMinerLib() {
+  const mi = state.miner, box = $('mvLib');
+  const sig = JSON.stringify(mi.library) + JSON.stringify(state.mvOut || null) + (state.stats ? state.stats.workers.map(w => w.name + ':' + minerLabel(w)).join() : '');
+  if (box.dataset.sig === sig && !box.contains(document.activeElement)) return;
+  if (box.contains(document.activeElement)) return;
+  box.dataset.sig = sig; box.textContent = '';
+  const h = document.createElement('h3'); h.textContent = 'Miner files on the proxy'; box.appendChild(h);
+  if (!mi.library.length) { const e = document.createElement('div'); e.className = 'gp-empty'; e.textContent = 'None yet. Download one from a link, or copy the miner a phone already has (e.g. after building it there).'; box.appendChild(e); }
+  for (const b of mi.library) {
+    const row = document.createElement('div'); row.className = 'mv-row';
+    const lb = document.createElement('div'); lb.className = 'lbl'; lb.textContent = b.label; lb.title = b.label;
+    const meta = document.createElement('div'); meta.className = 'meta';
+    const src = b.source === 'url' ? (() => { try { return 'from ' + new URL(b.url).host; } catch (e) { return 'downloaded'; } })() : b.source === 'device' ? 'copied from ' + b.device : b.source;
+    meta.textContent = [b.sha256.slice(0, 12), (b.size / 1048576).toFixed(1) + ' MB', b.arch, src, 'added ' + fmtAgo(b.added, Date.now()), 'on ' + b.devices + ' device' + (b.devices === 1 ? '' : 's')].join(' · ');
+    meta.title = b.url || b.sha256;
+    const act = document.createElement('div'); act.className = 'act';
+    const ins = document.createElement('button'); ins.className = 'linkbtn'; ins.textContent = 'Install…'; ins.title = 'Pick it in the form above';
+    ins.addEventListener('click', () => { $('mvAction').value = 'install:' + b.sha256; renderMiner(); $('mvTarget').focus(); });
+    const ren = document.createElement('button'); ren.className = 'linkbtn'; ren.textContent = 'Rename';
+    ren.addEventListener('click', async () => { const t = (prompt('Name for this miner file:', b.label) || '').trim(); if (t && t !== b.label) { await minerPost('rename', { sha256: b.sha256, label: t }); loadMiner(); } });
+    const del = document.createElement('button'); del.className = 'linkbtn'; del.textContent = 'Delete';
+    del.addEventListener('click', async () => { if (!confirm('Delete "' + b.label + '" from the proxy? Phones that run it keep running it.')) return; const r = await minerPost('delete', { sha256: b.sha256 }); if (!r.ok) alert(r.error); loadMiner(); });
+    act.append(ins, ren, del);
+    row.append(lb, act, meta);
+    box.appendChild(row);
+  }
+  const add = document.createElement('div'); add.className = 'mv-add';
+  const url = document.createElement('input'); url.type = 'url'; url.placeholder = 'https://…/ccminer  (a program, .tar.gz or .zip)'; url.setAttribute('aria-label', 'Link to a miner file');
+  const dl = document.createElement('button'); dl.className = 'btn small'; dl.textContent = 'Download';
+  dl.addEventListener('click', async () => {
+    if (!url.value.trim()) { url.focus(); return; }
+    dl.disabled = true; dl.textContent = 'Downloading…';
+    const r = await minerPost('add-url', { url: url.value.trim() });
+    state.mvOut = r.ok ? { text: (r.existing ? 'Already on the proxy as "' : 'Added "') + r.label + '".' } : { text: r.error, bad: true };
+    box.dataset.sig = ''; dl.blur(); await loadMiner();
+  });
+  const dsel = document.createElement('select'); dsel.setAttribute('aria-label', 'Device to copy the miner from');
+  for (const w of (state.stats ? state.stats.workers : []).filter(w => w.minerBin && w.minerBin.sha).sort((a, b) => a.name.localeCompare(b.name))) {
+    const o = document.createElement('option'); o.value = w.name; o.textContent = w.name + ' · ' + minerLabel(w); dsel.appendChild(o);
+  }
+  const cp = document.createElement('button'); cp.className = 'btn small'; cp.textContent = 'Copy from device'; cp.disabled = !dsel.options.length;
+  cp.title = dsel.options.length ? 'Copy the miner this phone has onto the proxy, to install it on others' : 'Check devices first';
+  cp.addEventListener('click', async () => {
+    cp.disabled = true; cp.textContent = 'Copying…';
+    const r = await minerPost('add-device', { worker: dsel.value, port: Number($('mvPort').value) || undefined });
+    state.mvOut = r.ok ? { text: (r.existing ? 'Already on the proxy as "' : 'Added "') + r.label + '".' } : { text: r.error, bad: true };
+    box.dataset.sig = ''; cp.blur(); await loadMiner();
+  });
+  add.append(url, dl, dsel, cp);
+  box.appendChild(add);
+  const out = document.createElement('div'); out.className = 'mv-out' + (state.mvOut && state.mvOut.bad ? ' bad' : ''); out.textContent = state.mvOut ? state.mvOut.text : '';
+  box.appendChild(out);
+}
+const MV_STATE = {
+  ok: ['--good', 'OK'], skipped: ['--muted', 'Skipped'], failed: ['--critical', 'Failed'], rolledback: ['--serious', 'Rolled back'],
+  queued: ['--muted', 'Queued'], sending: ['--warning', 'Sending'], installing: ['--warning', 'Installing'], checking: ['--warning', 'Checking'],
+  starting: ['--warning', 'Starting'], building: ['--s1', 'Building']
+};
+const MV_ACTION = { build: 'Build', install: 'Install', rollback: 'Roll back', check: 'Check' };
+function renderMinerJobs() {
+  const box = $('mvJobs'), mi = state.miner;
+  const sig = JSON.stringify(mi.jobs) + JSON.stringify([...state.mvOpen].map(id => state.mvFull[id] || null)) + [...state.mvOpen].join();
+  if (box.dataset.sig === sig) return;
+  box.dataset.sig = sig; box.textContent = '';
+  for (const j of mi.jobs.slice(0, 12)) {
+    const wrap = document.createElement('div'); wrap.className = 'run';
+    const head = document.createElement('div'); head.className = 'run-head'; head.tabIndex = 0;
+    const caret = document.createElement('span'); caret.className = 'caret'; caret.textContent = state.mvOpen.has(j.id) ? '▾' : '▸';
+    const when = document.createElement('span'); when.className = 'when';
+    when.textContent = new Date(j.t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const what = document.createElement('span'); what.className = 'cmd';
+    what.textContent = MV_ACTION[j.action] + (j.action === 'build' ? ' ' + j.branch : j.label ? ': ' + j.label : '') + ' · ' + j.count + ' device' + (j.count === 1 ? '' : 's');
+    const counts = document.createElement('span'); counts.className = 'counts';
+    if (j.ok) counts.appendChild(dot('--good', j.ok + ' ok', 'status'));
+    if (j.failed) counts.appendChild(dot('--critical', j.failed + ' failed', 'status'));
+    if (j.running) counts.appendChild(dot('--warning', j.running + (j.action === 'build' ? ' building' : ' running'), 'status'));
+    head.append(caret, when, what, counts);
+    const toggle = () => { state.mvOpen.has(j.id) ? state.mvOpen.delete(j.id) : state.mvOpen.add(j.id); loadMinerJob(j.id); };
+    head.addEventListener('click', toggle);
+    head.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    wrap.appendChild(head);
+    const full = state.mvFull[j.id];
+    if (state.mvOpen.has(j.id) && full) {
+      const body = document.createElement('div'); body.className = 'run-body';
+      const tools = document.createElement('div'); tools.className = 'run-tools';
+      tools.appendChild(document.createTextNode((full.by ? 'By ' + full.by + ' · ' : '') + (full.restart ? 'restart miner' : 'no restart') + (full.action === 'build' && full.stopMining ? ' · mining paused while building' : '')));
+      const failed = full.targets.filter(t => t.state === 'failed').map(t => t.name);
+      if (failed.length && full.summary.done) {
+        const b = document.createElement('button'); b.className = 'btn small'; b.textContent = 'Retry ' + failed.length + ' failed';
+        b.addEventListener('click', (e) => { e.stopPropagation(); minerRun(full.action, failed, { sha256: full.sha256, restart: full.restart, stopMining: full.stopMining, branch: full.branch, port: full.port }); });
+        tools.appendChild(b);
+      }
+      body.appendChild(tools);
+      const order = { failed: 0, rolledback: 0, building: 1, sending: 1, installing: 1, checking: 1, starting: 1, queued: 2, skipped: 3, ok: 4 };
+      for (const t of full.targets.slice().sort((a, b) => (order[a.state] ?? 5) - (order[b.state] ?? 5) || a.name.localeCompare(b.name))) {
+        const row = document.createElement('div'); row.className = 'res';
+        const h = document.createElement('div'); h.className = 'res-head';
+        const [col, lbl] = MV_STATE[t.state] || MV_STATE.failed;
+        h.appendChild(dot(col, lbl, 'status'));
+        const n = document.createElement('b'); n.textContent = t.name; h.appendChild(n);
+        const meta = document.createElement('span'); meta.className = 'dim';
+        const el = t.ms ? t.ms / 1000 : t.started ? (Date.now() - t.started) / 1000 : null;
+        meta.textContent = [t.commit ? t.commit.slice(0, 7) : null, el !== null ? fmtDur(el) : null].filter(Boolean).join(' · ');
+        h.appendChild(meta);
+        row.appendChild(h);
+        if (t.msg) { const nt = document.createElement('div'); nt.className = 'note'; nt.textContent = t.msg; row.appendChild(nt); }
+        if (t.state === 'building' && t.log) { const lg = document.createElement('div'); lg.className = 'note mono'; lg.style.color = css('--muted'); lg.style.fontSize = '11.5px'; lg.style.overflow = 'hidden'; lg.style.textOverflow = 'ellipsis'; lg.style.whiteSpace = 'nowrap'; lg.textContent = t.log; lg.title = t.log; row.appendChild(lg); }
+        body.appendChild(row);
+      }
+      wrap.appendChild(body);
+    }
+    box.appendChild(wrap);
+  }
+}
+async function minerRun(action, names, opts) {
+  if (!names.length) { alert('No devices selected.'); return; }
+  const mi = state.miner;
+  const list = names.length <= 8 ? names.join(', ') : names.slice(0, 8).join(', ') + ' and ' + (names.length - 8) + ' more';
+  const what = action === 'build' ? 'Build the newest ' + (opts.branch || mi.branch) + ' from source and install it'
+    : action === 'install' ? 'Install "' + (libLabel(opts.sha256) || 'this miner') + '"'
+    : action === 'rollback' ? 'Put the previous miner back' : 'Check the miner';
+  if (action !== 'check' && !confirm(what + ' on ' + names.length + ' device' + (names.length === 1 ? '' : 's') + ' (' + list + ')?' + (action !== 'check' && opts.restart ? '\n\nRunning miners are restarted with the new program.' : '\n\nRunning miners are not restarted.'))) return;
+  const r = await minerPost(action, Object.assign({ workers: names }, opts));
+  if (!r.ok) { alert('Not started: ' + r.error); return; }
+  state.mvOpen = new Set([r.id]);
+  await loadMiner(); await loadMinerJob(r.id); minerPoll();
+}
+$('mvGo').addEventListener('click', () => {
+  const a = $('mvAction').value;
+  const action = a.startsWith('install:') ? 'install' : a;
+  minerRun(action, mvTargets(), { sha256: a.startsWith('install:') ? a.slice(8) : undefined, restart: $('mvRestart').checked, stopMining: $('mvPause').checked, port: Number($('mvPort').value) || undefined });
+});
+$('mvAction').addEventListener('change', renderMiner);
+$('mvPort').addEventListener('change', renderMiner);
+$('mvCheckAll').addEventListener('click', () => minerRun('check', filtered().map(w => w.name), { port: Number($('mvPort').value) || undefined }));
 
 // ---------- device registry: find phones (USB + network scan) ----------
 const slug = (s) => String(s || '').replace(/[^a-zA-Z0-9._@-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64);
@@ -2015,6 +2361,74 @@ const Demo = (() => {
     usb: [{ serial: 'R58N70XYZ1', state: 'device', usb: true, model: 'SM-A525F', registered: null }, { serial: '9B2AY1Q8', state: 'unauthorized', usb: true, model: null, registered: null }],
     lastScan: null
   };
+  // miner versions demo: most phones on the newest build, some older, SBCs on a downloaded binary
+  const MV = { latest: '919df8de8dfcffe6959f2d37ba617e5f717e898a', older: '10686b2c1f0a4d3e9b8a7c6d5e4f3a2b1c0d9e8f', dl: 'c0ffee11aa22bb33cc44dd55ee66ff7788990011223344556677889900aabbcc' };
+  devs.forEach((d, i) => { d.mv = /^sbc/.test(d.name) ? 'dl' : i % 4 === 1 ? 'older' : 'latest'; d.mvSha = (d.mv === 'dl' ? MV.dl : (i.toString(16) + 'ab12cd34ef56').padEnd(64, '0')); });
+  function minerFor(d, now) {
+    if (d.manual) return null;
+    const built = d.mv !== 'dl';
+    return { ts: now - 7 * 60e3, port: 8022, env: built ? 'termux' : 'linux:debian', arch: 'aarch64', running: d.status !== 'offline', pid: 4000 + d.cores, exe: built ? '/data/data/com.termux/files/home/ccminer/ccminer-verus' : '/home/pi/ccminer/ccminer',
+      cwd: built ? '/data/data/com.termux/files/home/ccminer' : '/home/pi/ccminer', screen: built ? 'ccminer' : null, started: d.since,
+      cmd: built ? '/data/data/com.termux/files/home/ccminer/ccminer-verus -c /data/data/com.termux/files/home/ccminer/verus.conf -b --api-remote' : './ccminer -c config.json',
+      path: built ? '/data/data/com.termux/files/home/ccminer/ccminer-verus' : '/home/pi/ccminer/ccminer', sha: d.mvSha, size: 3480112, variant: 'baseline+x2percore+pristine', old: built ? 'ab'.padEnd(64, '1') : null,
+      build: built ? { commit: MV[d.mv], branch: 'variants', built: now - (d.mv === 'latest' ? 2 : 30) * 3600e3 } : null, building: d.building || null, error: null };
+  }
+  const demoMiner = {
+    enabled: true, reason: null, repo: 'https://github.com/zzpajk/CCminer-ARM-optimized.git', branch: 'variants', path: '~/ccminer/ccminer-verus', port: 8022,
+    ports: [{ port: 8022, name: 'Termux' }, { port: 2022, name: 'UserLAnd' }],
+    latest: { branch: 'variants', commit: MV.latest, date: Date.now() - 2.5 * 3600e3, message: 'phone-cpuwatch: the user\'s local stratum moved to 192.168.1.12', checked: Date.now() },
+    library: [{ sha256: MV.dl, size: 3391204, arch: 'aarch64', added: Date.now() - 9 * 86400e3, label: 'ccminer-arm64 (downloaded)', source: 'url', url: 'https://example.org/ccminer-arm64.tar.gz' }],
+    jobs: []
+  };
+  const demoJobs = [];
+  function jobSummary(j) {
+    const c = { ok: 0, failed: 0, running: 0 };
+    j.targets.forEach(t => { if (t.state === 'ok' || t.state === 'skipped') c.ok++; else if (t.state === 'failed' || t.state === 'rolledback') c.failed++; else c.running++; });
+    return { id: j.id, t: j.t, by: 'admin', action: j.action, label: j.label, sha256: j.sha256, branch: j.branch, port: 8022, restart: j.restart, stopMining: j.stopMining, count: j.targets.length, ...c, done: c.running === 0 };
+  }
+  function minerInfo() {
+    const on = {}; devs.forEach(d => { if (d.mvSha) on[d.mvSha] = (on[d.mvSha] || 0) + 1; });
+    demoMiner.library.forEach(b => b.devices = on[b.sha256] || 0);
+    demoMiner.jobs = demoJobs.map(jobSummary);
+    return demoMiner;
+  }
+  function minerJob(id) { const j = demoJobs.find(x => x.id === id); return Object.assign({}, j, { summary: jobSummary(j) }); }
+  function minerAction(action, body) {
+    if (action === 'latest') return { ok: true };
+    if (action === 'rename') { const b = demoMiner.library.find(x => x.sha256 === body.sha256); if (b) b.label = body.label; return { ok: true }; }
+    if (action === 'delete') { demoMiner.library = demoMiner.library.filter(x => x.sha256 !== body.sha256); return { ok: true }; }
+    if (action === 'add-url') { return { ok: false, error: 'Demo page: nothing is downloaded.' }; }
+    if (action === 'add-device') {
+      const d = devs.find(x => x.name === body.worker);
+      if (demoMiner.library.some(b => b.sha256 === d.mvSha)) return { ok: true, existing: true, label: demoMiner.library.find(b => b.sha256 === d.mvSha).label };
+      const label = d.mv === 'dl' ? 'from ' + d.name : 'variants ' + MV[d.mv].slice(0, 7) + ' (built on ' + d.name + ')';
+      demoMiner.library.unshift({ sha256: d.mvSha, size: 3480112, arch: 'aarch64', added: Date.now(), label, source: 'device', device: d.name, commit: MV[d.mv] || null, branch: 'variants' });
+      return { ok: true, label };
+    }
+    const j = { id: 'mj' + demoJobs.length, t: Date.now(), action, restart: body.restart !== false, stopMining: !!body.stopMining, branch: action === 'build' ? 'variants' : null,
+      sha256: body.sha256 || null, label: body.sha256 ? (demoMiner.library.find(b => b.sha256 === body.sha256) || {}).label : null, targets: [] };
+    body.workers.forEach((n, i) => {
+      const d = devs.find(x => x.name === n);
+      const t = { name: n, state: 'queued', msg: null, started: Date.now(), ms: null };
+      j.targets.push(t);
+      const off = !d || d.status === 'offline';
+      const fin = (st, msg) => { Object.assign(t, { state: st, msg, ms: Date.now() - t.started }); };
+      if (action === 'build') {
+        setTimeout(() => { if (off) return fin('failed', 'Device not reachable on the network.'); Object.assign(t, { state: 'building', msg: 'Building (installs build tools the first time)', log: '[4/5] Building (log: ~/.verusproxy/build-work/build.log)...', commit: MV.latest }); d.building = { phase: 'build', msg: 'Building', since: Date.now() }; }, 600 + i * 80);
+        setTimeout(() => { if (off) return; d.building = null; d.mv = 'latest'; fin('ok', 'Installed and restarted in screen session ccminer'); }, 9000 + i * 400);
+      } else {
+        setTimeout(() => { if (!off) t.state = action === 'install' ? 'sending' : 'checking'; }, 300 + i * 60);
+        setTimeout(() => {
+          if (off) return fin('failed', 'Device not reachable on the network.');
+          if (action === 'install') { d.mvSha = body.sha256; const b = demoMiner.library.find(x => x.sha256 === body.sha256); d.mv = b && b.commit === MV.latest ? 'latest' : b && b.commit ? 'older' : 'dl'; return fin('ok', 'Installed and restarted in screen session ccminer'); }
+          if (action === 'rollback') return fin('ok', 'Back on the previous version');
+          fin('ok', 'Running · variants ' + (MV[d.mv] || '').slice(0, 7));
+        }, 1500 + i * 150);
+      }
+    });
+    demoJobs.unshift(j);
+    return { ok: true, id: j.id };
+  }
   function invFor(d, now) {
     if (d.status === 'offline' && d.adb === null) return null;
     if (!d.root) return null;
@@ -2065,7 +2479,8 @@ const Demo = (() => {
         dataFreeMB: null, androidId: d.root ? d.aid : null, dupOf: null, notes: d.notes || '',
         conn: { adb: d.adb, adbMsg: d.adb === 'unauthorized' ? 'Phone has not allowed this proxy: accept "Allow USB debugging" on the phone, or use "Install ADB key".' : null, adbPort: !!d.adb && d.adb !== 'closed',
           ports: d.status === 'offline' ? { 8022: false, 2022: false } : { 8022: !/^sbc/.test(d.name), 2022: !!d.userland }, ts: now - 20e3 },
-        invTs: d.root ? now - d.invAgo : null, invError: null, inv: invFor(d, now)
+        invTs: d.root ? now - d.invAgo : null, invError: null, inv: invFor(d, now),
+        minerBin: minerFor(d, now)
       };
     });
     workers.forEach(w => { if (w.inv) w.dataFreeMB = w.inv.dataFreeMB; });
@@ -2230,7 +2645,7 @@ const Demo = (() => {
     }
     return { ok: false, error: 'unknown action' };
   }
-  return { stats, history, pools, poolAction, groupAction, sshInfo, sshStart, sshGet, addDevices, forget, regAction };
+  return { stats, history, pools, poolAction, groupAction, sshInfo, sshStart, sshGet, addDevices, forget, regAction, minerInfo, minerJob, minerAction };
 })();
 
 // ---------- boot ----------

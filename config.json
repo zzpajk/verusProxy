@@ -43,6 +43,17 @@
         ]
     },
 
+    "miner": {
+        "repo": "https://github.com/zzpajk/CCminer-ARM-optimized.git",
+        "branch": "variants",
+        "path": "~/ccminer/ccminer-verus",
+        "match": "ccminer",
+        "sshPort": 0,
+        "buildTimeoutMin": 120,
+        "checkEveryMin": 60,
+        "archs": ["aarch64", "arm"]
+    },
+
     "adb": {
         "enabled": false,
         "bin": "adb",

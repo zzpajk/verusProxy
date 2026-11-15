@@ -221,6 +221,36 @@ The proxy can also keep a registry of your phones: what each one is, whether it'
 
 Device facts are stored with the rest of the stats in `data/stats.json`. ADB gives full control of a phone, so like remote commands it only works with a dashboard login, and actions only from the dashboard page itself; the proxy only connects to devices it already knows or found in a scan of your LAN, never to an address typed into the page.
 
+# Miner updates
+
+The **Miner versions** card (below Remote commands) shows which ccminer every phone has and puts a new one on many phones at once. It works over SSH (Termux, port 8022; or another port from `ssh.ports`, e.g. UserLAnd 2022), so it needs the same setup as Remote commands: `ssh.enabled` and `dashboard.auth`.
+
+**What it shows.** For each device: the miner program it runs (or has installed), how it was started (screen session or background), the command line, its checksum, the build (branch + commit) when it was built by the proxy, and whether the previous version is kept. Devices are checked every hour (`miner.checkEveryMin`) and after every job; *Check devices* does it now. The newest commit of the source branch (default `zzpajk/CCminer-ARM-optimized` @ `variants`) is looked up on GitHub, so the table's **Miner build** column and the card show who is on the newest build (green) and who isn't (amber · update).
+
+**Three ways to get a miner onto phones:**
+1. **Build newest on each phone** – each phone fetches the newest commit of the branch into `~/.verusproxy/ccminer-src` and runs the fork's own `build-verus.sh` (it installs clang and the build tools the first time; a few minutes per phone, all phones at once). Builds run in the background on the phone; the card shows each phone's progress, and keeps following them if the proxy restarts. *Pause mining while building* makes builds much faster; mining is started again afterwards, also when the build fails.
+2. **Install a miner file kept on the proxy** – *Copy from device* takes the miner a phone already has (e.g. one you just built there: build on one phone, copy, install on the rest). *Download* takes a link to a program, `.tar.gz` or `.zip` (the file with `ccminer` in its name is used). Only ARM programs are accepted.
+3. **Roll back** – puts back the previous miner kept by the last install.
+
+**How an install works on each phone** (the same for all three):
+- the new program is checked to really run there (`-V`): missing libraries or the wrong CPU type are caught before anything is replaced;
+- the old program is kept next to it as `<name>.old`;
+- the new one replaces the program the running miner uses (if none runs: `miner.path`, default `~/ccminer/ccminer-verus`);
+- with *Restart miner* on, the running miner is stopped and started again **the same way**: same command line and folder, in the same screen session if it ran in one (e.g. the fork's `start-ccminer.sh`), otherwise in the background (output in `~/.verusproxy/miner.log`);
+- if the new miner doesn't stay up for 12 s, the old one is put back automatically (shown as *Rolled back*, with the miner's last output).
+
+Device details (click a name) show the same per device, with *Check*, *Build newest* and *Roll back*. Everything the proxy keeps on a phone is in `~/.verusproxy/`; miner files on the proxy are in `data/miners/`.
+
+| `miner` setting | default | |
+|---|---|---|
+| `repo`, `branch` | `https://github.com/zzpajk/CCminer-ARM-optimized.git`, `variants` | source for *Build newest* (needs `build-verus.sh` in the branch) |
+| `path` | `~/ccminer/ccminer-verus` | where the miner goes on a phone that isn't running one |
+| `match` | `ccminer` | the running miner is the process with this in its program name |
+| `sshPort` | `0` (= `ssh.port`) | default port for miner jobs; the card can pick another one from `ssh.ports` |
+| `buildTimeoutMin` | `120` | stop following a build after this |
+| `checkEveryMin` | `60` | how often devices are checked |
+| `archs` | `["aarch64", "arm"]` | program types accepted for download/copy |
+
 # Pool failover
 
 List several pools in priority order; the proxy mines on one and moves every device to the next if it stops answering. Devices stay connected to the proxy the whole time — they just get a new extranonce and job (this is why miners must support extranonce subscription, which ccminer does).
@@ -374,6 +404,7 @@ sudo systemctl enable --now verusproxy-watchdog.timer
 `GET /api/health`, `GET /api/stats`, `GET /api/history?range=1h|6h|24h|7d|30d&metric=rep|eff`, `GET /api/pools`, `POST /api/report`.
 With header `X-VP-Control: 1`: `POST /api/forget {"worker": "..."}`, `POST /api/devices/add {"devices": [{"name": "phone21", "ip": "192.168.1.61"}], "group": "Shelf A"}`, `POST /api/groups/{assign,create,rename,delete}`.
 Remote commands (needs `ssh.enabled`, `dashboard.auth` and header `X-VP-Control: 1`): `GET /api/ssh`, `POST /api/ssh/run {"workers": ["phone01"], "command": "uptime"}` (or `"preset": "Uptime"`), `GET /api/ssh/run?id=...`.
+Miner updates (needs `ssh.enabled`, `dashboard.auth` and header `X-VP-Control: 1`): `GET /api/miner`, `GET /api/miner/job?id=...`, `POST /api/miner/{check,build,rollback} {"workers": [...], "restart": true, "stopMining": false, "port": 8022}`, `POST /api/miner/install {"workers": [...], "sha256": "..."}`, `POST /api/miner/add-url {"url": "..."}`, `POST /api/miner/add-device {"worker": "..."}`, `POST /api/miner/{delete,rename} {"sha256": "...", "label": "..."}`, `POST /api/miner/latest`.
 Device registry (needs `adb.enabled`, `dashboard.auth` and header `X-VP-Control: 1`): `GET /api/registry`, `POST /api/registry/refresh {"workers": [...]}`, `POST /api/registry/{reconnect,reboot} {"worker": "..."}`, `POST /api/registry/scan`, `POST /api/registry/add-found {"devices": [{"ip": "...", "name": "..."}], "group": "..."}`, `POST /api/registry/usb-enable {"serial": "...", "name": "..."}`, `POST /api/registry/install-key {"workers": [...]}`, `POST /api/devices/notes {"worker": "...", "notes": "..."}`. ADB commands: `POST /api/ssh/run {"workers": [...], "channel": "adb" | "adbroot", "command": "..."}`.
 Pool control (needs `dashboard.auth` and header `X-VP-Control: 1`): `POST /api/pools/switch {"index": 1}`, `POST /api/pools/auto {"enabled": true}`, `POST /api/pools/reset-preferred`.
 
