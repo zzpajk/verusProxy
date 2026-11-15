@@ -92,6 +92,7 @@ Open `http://<proxy-ip>:8080/` (port set by `dashboard.port`).
 - **Device table** – drag column headers (or use the arrows under *Columns*) to reorder, sort by any column, search, filter by status / make / system / temperature, choose columns. Shows make, model, SoC, Android/OS version, kernel, cores, CPU MHz, CPU temp, battery temp/level, reported & pool-side hashrate, hashrate per core, shares, reject %, miner version, IP, uptime, last share.
 - Offline devices stay in the table so you notice dead phones (auto-removed after 14 days, or press *Forget*).
 - History is kept for 24h at 1-minute resolution and 30 days at 15-minute resolution, saved to `data/stats.json` so it survives restarts.
+- **Device registry** – with ADB on, every phone's make, model, Android version, root, apps and ways in (ADB, Termux SSH, UserLAnd SSH) are read and kept up to date; click a device's name (or *Details*) for everything about it plus actions. See [Device registry (ADB)](#device-registry-adb).
 
 ## Device groups
 
@@ -118,7 +119,7 @@ phone22 192.168.1.62
 Optionally put them straight into a group. Use the device's ccminer worker name as the name, so the row joins up with the mining data once it starts mining through the proxy. Only local network addresses are accepted (10.x, 172.16–31.x, 192.168.x, 100.64–127.x).
 
 An added device shows as:
-- **Not mining**: its SSH port (`ssh.port`, 8022) answers, but it isn't mining through the proxy;
+- **Not mining**: it answers on ADB or one of its SSH ports, but it isn't mining through the proxy;
 - **Mining elsewhere**: ccminer's API answers and it's on another pool;
 - **Online**: it mines through the proxy under that name;
 - **Offline**: nothing answers.
@@ -177,6 +178,48 @@ Options (environment variables): `WORKER=phone01` (otherwise taken from ccminer'
 | `forgetOfflineAfterDays` | `14` | |
 | `ccminerApi`, `ccminerApiPort`, `ccminerPollSec` | `true`, `4068`, `30` | |
 | `ccminerHosts` | `[]` | extra ccminer APIs to poll |
+
+# Device registry (ADB)
+
+The proxy can also keep a registry of your phones: what each one is, whether it's rooted, which ways in work, and buttons to act on it. It talks to the phones over **ADB on WiFi** (port 5555) using the proxy machine's own `adb` tool, and checks Termux SSH (8022) and UserLAnd SSH (2022) next to it.
+
+**Turn it on**
+
+1. On the proxy machine: `sudo apt install adb`, then once, as the user the proxy runs as: `adb start-server` (creates the proxy's ADB key in `~/.android/`).
+2. `config.local.json`: `"adb": { "enabled": true }` (needs `dashboard.auth`, like remote commands), restart. The startup lines say `device registry over ADB: ON`.
+3. Phones: keep ADB on WiFi after every reboot with a Termux:Boot script, e.g. `~/.termux/boot/adb-wifi` (rooted phones):
+   ```
+   #!/data/data/com.termux/files/usr/bin/sh
+   su -c settings put global adb_enabled 1
+   su -c setprop service.adb.tcp.port 5555
+   su -c stop adbd
+   su -c start adbd
+   ```
+4. The first time the proxy connects, each phone asks "Allow USB debugging?" for the proxy's key (tick *Always allow*). Instead of walking to every phone, rooted phones can get the key over Termux SSH: open the device's details and press **Install ADB key** (needs `ssh.enabled`; it appends the key to `/data/misc/adb/adb_keys` with `su` and restarts ADB on port 5555).
+
+**What it shows.** Every minute the proxy checks each known device's ADB port and SSH ports and keeps the ADB connection open. Every 10 min (`adb.inventoryEveryMin`), and when you press *Refresh info*, it reads over ADB: make, brand, model and marketing name, codename, Android version / SDK / security patch, build, SoC, cores, RAM, free storage, kernel, battery, uptime, WiFi address and MAC, serial number, Android ID, **root** (Magisk / KernelSU / APatch / su, its version, and whether the ADB shell may use it), Termux / Termux:Boot / Termux:API / UserLAnd versions, and the running ccminer command line. This fills the table's make/model/system columns without the device agent; new columns *Root*, *Access* (ADB · Termux · UserLAnd), *Termux*, *UserLAnd*, *Free storage*, *Info read*, *Notes*, and a *Rooted or not* filter.
+
+**Device details.** Click a device's name (or *Details*): all facts, connection state with the reason when something doesn't work, notes (kept on the proxy), and actions: *Refresh info*, *Reconnect ADB*, *Reboot*, *Install ADB key*, *Run command*, *Remove*.
+
+**Finding phones** (*Find phones* under the table):
+- **On USB** — phones plugged into the proxy machine. *Switch to WiFi & add* runs `adb tcpip 5555`, reads the phone's WiFi address, connects and adds it under the name you type. Unplug it afterwards. Phones that still have to accept the USB debugging prompt are listed too.
+- **On the network** — *Scan network* tries port 5555 on every address of the proxy's own `/24` (or the ranges in `adb.scan`) and lists what answers with model and name. Tick the new ones, name them (use the ccminer worker name so mining data joins up), pick a group, *Add selected*.
+
+**Phones are recognised by Android ID**, so a phone that gets a new address from DHCP is updated by the next scan, and a phone listed twice under two names (renamed worker, added twice) is flagged as *same phone as …*.
+
+**ADB in Remote commands.** The panel's second box picks the way in: *Termux SSH (8022)*, *UserLAnd SSH (2022)* (from `ssh.ports`), *ADB shell* or *ADB root shell*. ADB channels work without SSH (but still need the dashboard login). *ADB root shell* needs root granted to *Shell* (`com.android.shell`) in Magisk/KernelSU; the device details show whether it is.
+
+| `adb` setting | default | |
+|---|---|---|
+| `enabled` | `false` | |
+| `bin` | `"adb"` | path of the adb tool if it's not on `PATH` |
+| `port` | `5555` | ADB port on the phones |
+| `timeoutSec` | `20` | for single adb calls (commands use `ssh.timeoutSec`) |
+| `inventoryEveryMin` | `10` | how often device info is re-read |
+| `parallel` | `6` | phones worked on at the same time |
+| `scan` | `[]` | ranges for *Scan network*, e.g. `["192.168.1.0/24"]`; empty = the proxy's own networks |
+
+Device facts are stored with the rest of the stats in `data/stats.json`. ADB gives full control of a phone, so like remote commands it only works with a dashboard login, and actions only from the dashboard page itself; the proxy only connects to devices it already knows or found in a scan of your LAN, never to an address typed into the page.
 
 # Pool failover
 
@@ -251,7 +294,7 @@ Run shell commands on one device, a group, or every device shown in the table, f
 3. On each phone in Termux: `pkg install openssh`, `passwd` (set a password), `sshd`. To start sshd with the phone, add `sshd` to `~/.termux/boot/` (Termux:Boot app).
 4. On the proxy machine, **as the user the proxy runs as** (e.g. `pi`): `./deploy/ssh-copy-key.sh`. It creates an SSH key if there is none and installs it on every device the dashboard knows, asking each device's Termux password once. Pass IP addresses to do only some devices. The dashboard's *Setup* button also shows the public key and a one-liner to paste in Termux.
 
-Then use the **Remote commands** panel below the device table: pick the devices (*devices shown in the table*, a group, or one device; each row's *SSH* button picks that device), type a command or click a saved command, and press *Run*. You confirm the exact devices first. Results appear per device as they finish, failures first, with a plain-English hint (sshd not running, key not installed, device unreachable, timed out); *Retry failed* re-runs on just those.
+Then use the **Remote commands** panel below the device table: pick the devices (*devices shown in the table*, a group, or one device; each row's *Run* button picks that device), pick the way in (Termux SSH, other `ssh.ports`, or ADB — see [Device registry](#device-registry-adb)), type a command or click a saved command, and press *Run*. You confirm the exact devices first. Results appear per device as they finish, failures first, with a plain-English hint (sshd not running, key not installed, device unreachable, timed out); *Retry failed* re-runs on just those.
 
 | `ssh` setting | default | |
 |---|---|---|
@@ -331,6 +374,7 @@ sudo systemctl enable --now verusproxy-watchdog.timer
 `GET /api/health`, `GET /api/stats`, `GET /api/history?range=1h|6h|24h|7d|30d&metric=rep|eff`, `GET /api/pools`, `POST /api/report`.
 With header `X-VP-Control: 1`: `POST /api/forget {"worker": "..."}`, `POST /api/devices/add {"devices": [{"name": "phone21", "ip": "192.168.1.61"}], "group": "Shelf A"}`, `POST /api/groups/{assign,create,rename,delete}`.
 Remote commands (needs `ssh.enabled`, `dashboard.auth` and header `X-VP-Control: 1`): `GET /api/ssh`, `POST /api/ssh/run {"workers": ["phone01"], "command": "uptime"}` (or `"preset": "Uptime"`), `GET /api/ssh/run?id=...`.
+Device registry (needs `adb.enabled`, `dashboard.auth` and header `X-VP-Control: 1`): `GET /api/registry`, `POST /api/registry/refresh {"workers": [...]}`, `POST /api/registry/{reconnect,reboot} {"worker": "..."}`, `POST /api/registry/scan`, `POST /api/registry/add-found {"devices": [{"ip": "...", "name": "..."}], "group": "..."}`, `POST /api/registry/usb-enable {"serial": "...", "name": "..."}`, `POST /api/registry/install-key {"workers": [...]}`, `POST /api/devices/notes {"worker": "...", "notes": "..."}`. ADB commands: `POST /api/ssh/run {"workers": [...], "channel": "adb" | "adbroot", "command": "..."}`.
 Pool control (needs `dashboard.auth` and header `X-VP-Control: 1`): `POST /api/pools/switch {"index": 1}`, `POST /api/pools/auto {"enabled": true}`, `POST /api/pools/reset-preferred`.
 
 The dashboard is meant for your LAN. If you expose it to the internet, set `auth` and put it behind HTTPS.

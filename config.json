@@ -43,6 +43,16 @@
         ]
     },
 
+    "adb": {
+        "enabled": false,
+        "bin": "adb",
+        "port": 5555,
+        "timeoutSec": 20,
+        "inventoryEveryMin": 10,
+        "parallel": 6,
+        "scan": []
+    },
+
     "dashboard": {
         "enabled": true,
         "host": "0.0.0.0",

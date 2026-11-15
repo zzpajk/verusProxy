@@ -221,6 +221,50 @@ select.gsel.none { color: var(--muted); }
 .gp-empty { color: var(--muted); font-size: 12.5px; padding: 6px 4px; }
 .linkbtn { font: inherit; font-size: 12px; color: var(--ink-2); background: none; border: 0; cursor: pointer; padding: 2px 4px; border-radius: 4px; }
 .linkbtn:hover { background: var(--wash); color: var(--ink); }
+/* registry: access badges, device drawer, phone finder */
+.acc { display: inline-flex; gap: 8px; }
+.acc span { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-2); }
+.acc span.off { color: var(--muted); }
+.acc i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex: none; }
+.rootb { font-size: 12.5px; }
+td.name .namebtn { font: inherit; font-weight: 600; color: var(--ink); background: none; border: 0; padding: 0; cursor: pointer; }
+td.name .namebtn:hover { text-decoration: underline; }
+td .dupe { color: var(--serious); font-weight: 400; font-size: 12px; margin-left: 6px; }
+.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.18); z-index: 29; display: none; }
+.scrim.open { display: block; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100vw); background: var(--surface); z-index: 30;
+  box-shadow: -1px 0 0 var(--ring), -12px 0 32px rgba(0,0,0,.14); overflow-y: auto; transform: translateX(105%); transition: transform .18s ease-out;
+  padding: 16px 18px 28px; visibility: hidden; }
+.drawer.open { transform: none; visibility: visible; }
+.dr-head { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 4px; }
+.dr-head h2 { font-size: 17px; margin: 0; font-weight: 650; overflow-wrap: anywhere; }
+.dr-head .sub { color: var(--ink-2); font-size: 13px; margin-top: 2px; }
+.dr-close { font: inherit; font-size: 20px; line-height: 1; color: var(--ink-2); background: none; border: 0; cursor: pointer; padding: 2px 6px; border-radius: 6px; margin-left: auto; }
+.dr-close:hover { background: var(--wash); }
+.drawer h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; margin: 18px 0 6px; }
+.facts { display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 3px 14px; margin: 0; font-size: 13px; }
+.facts dt { color: var(--ink-2); }
+.facts dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.facts dd.mono { font-size: 12px; }
+.dr-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.dr-msg { font-size: 12.5px; margin-top: 8px; color: var(--ink-2); min-height: 1em; }
+.dr-msg.bad { color: var(--critical); }
+.dr-warn { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: var(--wash); font-size: 12.5px; color: var(--ink-2); line-height: 1.45; }
+.conn-row { display: flex; align-items: baseline; gap: 8px; font-size: 13px; padding: 3px 0; }
+.conn-row b { font-weight: 600; min-width: 92px; }
+.conn-row .why { color: var(--muted); font-size: 12px; }
+.drawer textarea { width: 100%; min-height: 64px; resize: vertical; font: inherit; font-size: 13px; color: var(--ink); background: var(--page); border: 0;
+  box-shadow: inset 0 0 0 1px var(--ring); border-radius: 8px; padding: 8px 10px; }
+.colmenu .panel.xwide { width: min(480px, calc(100vw - 32px)); padding: 10px; }
+.find h4 { font-size: 13px; margin: 4px 0 6px; font-weight: 600; }
+.find .help { color: var(--muted); font-size: 12.5px; margin: 0 0 8px; line-height: 1.45; }
+.find-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 8px; align-items: center; padding: 6px 2px; border-top: 1px solid var(--grid); font-size: 13px; }
+.find-row .what { min-width: 0; }
+.find-row .what .dim { color: var(--muted); font-size: 12px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.find-row input[type=text] { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 0; box-shadow: inset 0 0 0 1px var(--ring); border-radius: 6px; height: 28px; padding: 0 8px; width: 130px; }
+.find .bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0; font-size: 13px; color: var(--ink-2); }
+.find .bar select { font: inherit; font-size: 13px; color: var(--ink); background: var(--surface); border: 0; box-shadow: inset 0 0 0 1px var(--ring); border-radius: 8px; height: 28px; padding: 0 6px; max-width: 160px; }
+.find .sep { border-top: 1px solid var(--grid); margin: 12px 0 8px; }
 </style>
 </head>
 <body>
@@ -274,6 +318,7 @@ select.gsel.none { color: var(--muted); }
     <select id="fGroup" aria-label="Group"><option value="">All groups</option></select>
     <select id="fMake" aria-label="Make"><option value="">All makes</option></select>
     <select id="fOs" aria-label="System"><option value="">All systems</option></select>
+    <select id="fRoot" aria-label="Root" hidden><option value="">Rooted or not</option><option value="yes">Rooted</option><option value="su">Rooted, not for ADB</option><option value="no">Not rooted</option><option value="unknown">Not read yet</option></select>
     <select id="fTemp" aria-label="Temperature"><option value="">Any temperature</option><option value="60">CPU ≥ 60 °C</option><option value="70">CPU ≥ 70 °C</option><option value="80">CPU ≥ 80 °C</option></select>
     <span class="count" id="filterCount"></span>
     <button class="btn" id="clearFilters" hidden>Clear</button>
@@ -296,6 +341,7 @@ select.gsel.none { color: var(--muted); }
     <div class="table-scroll"><table id="tbl"><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>
     <div class="table-foot">
       <span id="tableNote">Tick a device to plot it. Click a column to sort.</span>
+      <div class="colmenu" id="findmenu" hidden><button class="btn" id="findBtn" title="Phones on USB, and phones on the network with ADB on">Find phones</button><div class="panel xwide" id="findPanel"></div></div>
       <div class="colmenu" id="addmenu"><button class="btn" id="addBtn" title="Add devices by IP address, e.g. to reach them over SSH before they mine">Add devices</button><div class="panel wide" id="addPanel"></div></div>
       <div class="colmenu" id="groupmenu"><button class="btn" id="groupBtn">Groups</button><div class="panel wide" id="groupPanel"></div></div>
       <div class="colmenu" id="colmenu"><button class="btn" id="colBtn">Columns</button><div class="panel" id="colPanel"></div></div>
@@ -311,7 +357,7 @@ select.gsel.none { color: var(--muted); }
     <div class="ssh-setup" id="sshSetup" hidden></div>
     <div class="ssh-form">
       <select id="sshTarget" aria-label="Devices to run on"></select>
-      <select id="sshPort" aria-label="SSH port" hidden></select>
+      <select id="sshPort" aria-label="Run through" hidden></select>
       <input id="sshCmd" class="mono" placeholder="Command to run in Termux, e.g. uptime" aria-label="Command" autocomplete="off" spellcheck="false">
       <button class="btn" id="sshRun">Run</button>
     </div>
@@ -320,6 +366,8 @@ select.gsel.none { color: var(--muted); }
   </section>
   <p class="note" id="footNote"></p>
 </div>
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Device details" aria-hidden="true"></aside>
 
 <script>
 (() => {
@@ -361,6 +409,7 @@ function tempLevel(t) {
 const STATUS = { online: ['--good', 'Online'], idle: ['--muted', 'Not mining'], reconnecting: ['--warning', 'Reconnecting'], stale: ['--warning', 'No shares'], elsewhere: ['--serious', 'Mining elsewhere'], offline: ['--critical', 'Offline'] };
 
 // ---------- state ----------
+const DEFAULT_HIDDEN = ['address','kernel','arch','ram','load','ping','freq','firstSeen','minerShares','threads','userland','notes','storage'];
 const state = {
   range: store.get('range', '6h'),
   metric: store.get('metric', 'rep'),
@@ -369,9 +418,19 @@ const state = {
   showTotals: store.get('showTotals', true),
   theme: store.get('theme', 'auto'),
   colOrder: store.get('colOrder', null),
-  hiddenCols: store.get('hiddenCols', ['address','kernel','arch','ram','load','ping','freq','firstSeen','minerShares','threads']),
+  hiddenCols: store.get('hiddenCols', DEFAULT_HIDDEN),
   stats: null, history: null, demo: false, lastOk: 0
 };
+// columns added in a later version start hidden if they are hidden by default
+(() => {
+  const seen = store.get('colsSeen', null);
+  const all = ['plot','status','name','group','make','model','soc','os','root','access','kernel','arch','cores','freq','ram','storage','temp','battery','load','hash','other','perCore','threads','shares','rej','minerShares','software','termux','userland','ping','ip','address','uptime','lastShare','info','notes','firstSeen','action'];
+  if (seen) {
+    const fresh = all.filter(k => !seen.includes(k) && DEFAULT_HIDDEN.includes(k) && !state.hiddenCols.includes(k));
+    if (fresh.length) { state.hiddenCols = state.hiddenCols.concat(fresh); store.set('hiddenCols', state.hiddenCols); }
+  }
+  store.set('colsSeen', all);
+})();
 
 // ---------- columns ----------
 const hashOf = (w) => state.metric === 'rep' ? (w.repHashrate ?? null) : w.effHashrate;
@@ -384,11 +443,14 @@ const COLS = [
   { key: 'model', label: 'Model', val: w => (w.model || '').toLowerCase() },
   { key: 'soc', label: 'SoC / CPU', val: w => (w.soc || '').toLowerCase() },
   { key: 'os', label: 'System', val: w => (w.os || '').toLowerCase() },
+  { key: 'root', label: 'Root', val: w => ({ yes: 0, su: 1, no: 2 })[w.root] },
+  { key: 'access', label: 'Access', val: w => accessParts(w).filter(p => p[1] === 'ok').length * -1 || null },
   { key: 'kernel', label: 'Kernel', val: w => w.kernel || '' },
   { key: 'arch', label: 'Arch', val: w => w.arch || '' },
   { key: 'cores', label: 'Cores', num: true, val: w => w.cores },
   { key: 'freq', label: 'CPU MHz', num: true, val: w => w.cpuFreq },
   { key: 'ram', label: 'RAM', num: true, val: w => w.ramMB },
+  { key: 'storage', label: 'Free storage', num: true, val: w => w.dataFreeMB },
   { key: 'temp', label: 'CPU °C', num: true, val: w => w.cpuTemp },
   { key: 'battery', label: 'Battery', num: true, val: w => w.batteryTemp ?? w.batteryLevel },
   { key: 'load', label: 'Load', num: true, val: w => w.load },
@@ -400,11 +462,15 @@ const COLS = [
   { key: 'rej', label: 'Reject % (1 h)', num: true, val: w => rejRate(w.accepted1h, w.rejected1h) },
   { key: 'minerShares', label: 'ccminer A/R', num: true, val: w => w.minerAccepted },
   { key: 'software', label: 'Miner', val: w => w.software || '' },
+  { key: 'termux', label: 'Termux', val: w => w.termux || '' },
+  { key: 'userland', label: 'UserLAnd', val: w => w.userland || '' },
   { key: 'ping', label: 'Ping ms', num: true, val: w => w.ping },
   { key: 'ip', label: 'IP', val: w => (w.ip || '').split('.').map(x => x.padStart(3, '0')).join('.') },
   { key: 'address', label: 'Wallet', val: w => w.address || '' },
   { key: 'uptime', label: 'Mining for', num: true, val: w => w.minerUptime ?? (w.connectedSince ? (state.stats.time - w.connectedSince) / 1000 : null) },
   { key: 'lastShare', label: 'Last share', num: true, val: w => w.lastShare ? -w.lastShare : null },
+  { key: 'info', label: 'Info read', num: true, val: w => w.invTs ? -w.invTs : null },
+  { key: 'notes', label: 'Notes', val: w => (w.notes || '').toLowerCase() || null },
   { key: 'firstSeen', label: 'First seen', num: true, val: w => w.firstSeen },
   { key: 'action', label: '', nosort: true, fixed: true }
 ];
@@ -435,9 +501,9 @@ function visibleCols() { return orderedCols().filter(c => c.fixed || !state.hidd
 
 // ---------- filtering ----------
 function filters() {
-  return { q: $('q').value.trim().toLowerCase(), status: $('fStatus').value, group: $('fGroup').value, make: $('fMake').value, os: $('fOs').value, temp: Number($('fTemp').value) || 0 };
+  return { q: $('q').value.trim().toLowerCase(), status: $('fStatus').value, group: $('fGroup').value, make: $('fMake').value, os: $('fOs').value, root: $('fRoot').value, temp: Number($('fTemp').value) || 0 };
 }
-function filterActive(f) { return !!(f.q || f.status || f.group || f.make || f.os || f.temp); }
+function filterActive(f) { return !!(f.q || f.status || f.group || f.make || f.os || f.root || f.temp); }
 function filtered() {
   if (!state.stats) return [];
   const f = filters();
@@ -447,8 +513,9 @@ function filtered() {
     if (f.make && (w.make || 'Unknown') !== f.make) return false;
     if (f.os && osFamily(w.os) !== f.os) return false;
     if (f.temp && !(w.cpuTemp >= f.temp)) return false;
+    if (f.root && (w.root || 'unknown') !== f.root) return false;
     if (f.q) {
-      const hay = [w.name, w.group, w.make, w.model, w.soc, w.os, w.ip, w.software, w.address].join(' ').toLowerCase();
+      const hay = [w.name, w.group, w.make, w.model, w.marketName, w.soc, w.os, w.ip, w.software, w.address, w.notes, w.androidId, w.inv && w.inv.serial].join(' ').toLowerCase();
       if (!hay.includes(f.q)) return false;
     }
     return true;
@@ -546,6 +613,39 @@ function rejectExplain(n, causes, reasons) {
 function seriesColorFor(name) {
   const i = state.plotted.indexOf(name);
   return i < 0 ? null : css(SERIES[(i + 2) % SERIES.length]);
+}
+// root as read over ADB: [color, label, explanation]
+const ROOT = {
+  yes: ['--good', 'Rooted', 'Rooted, and the ADB shell gets root (ADB root shell works)'],
+  su: ['--warning', 'Rooted', 'Has su, but the ADB shell is not allowed root: in Magisk/KernelSU, grant root to "Shell" (com.android.shell)'],
+  no: ['--muted', 'No', 'No su found: not rooted']
+};
+// which ways in answer: ADB, then each SSH port (Termux 8022, UserLAnd 2022, ...)
+function accessParts(w) {
+  const reg = state.stats && state.stats.registry, c = w.conn, out = [];
+  if (!reg) return out;
+  const fresh = c && c.ts && state.stats.time - c.ts < 5 * 60e3;
+  if (reg.adb && reg.adb.enabled) {
+    const st = fresh ? c.adb : null;
+    const s = st === 'device' ? 'ok' : (st === 'unauthorized' || st === 'offline') ? 'warn' : 'off';
+    const why = st === 'device' ? 'ADB connected' : st ? (c.adbMsg || 'ADB: ' + st) : 'ADB not checked yet';
+    out.push(['ADB', s, why]);
+  }
+  for (const p of reg.sshPorts || []) {
+    const v = fresh && c.ports ? c.ports[p.port] : undefined;
+    out.push([p.name, v ? 'ok' : 'off', p.name + ' SSH (port ' + p.port + '): ' + (v ? 'answers' : v === false ? 'not listening' : 'not checked yet')]);
+  }
+  return out;
+}
+const ACC_COLOR = { ok: '--good', warn: '--warning', off: '--axis' };
+function accessBadges(w) {
+  const box = document.createElement('span'); box.className = 'acc';
+  for (const [label, s, why] of accessParts(w)) {
+    const sp = document.createElement('span'); if (s === 'off') sp.className = 'off'; sp.title = why;
+    const i = document.createElement('i'); i.style.background = css(ACC_COLOR[s]); sp.append(i, document.createTextNode(label));
+    box.appendChild(sp);
+  }
+  return box;
 }
 function cell(tr, text, cls) { const td = document.createElement('td'); if (cls) td.className = cls; if (text instanceof Node) td.appendChild(text); else td.textContent = text ?? '—'; tr.appendChild(td); return td; }
 function dot(color, label, cls) {
@@ -648,12 +748,16 @@ function renderTable() {
           else if (w.status === 'stale') td.title = 'No accepted share for ' + fmtDur((state.stats.time - Math.max(w.lastShare || 0, w.connectedSince || 0)) / 1000) +
             (w.expectedShareSec ? '; this device normally finds one about every ' + fmtDur(w.expectedShareSec) + '. Check ccminer on it.' : '. Check ccminer on it.');
           else if (w.status === 'online' && w.expectedShareSec) td.title = 'Finds a share about every ' + fmtDur(w.expectedShareSec) + ' on average (it varies a lot)';
-          else if (w.status === 'idle') td.title = 'Added by hand. The device answers on its SSH port, but is not mining through this proxy.';
-          else if (w.status === 'offline') td.title = (w.manual ? 'Added by hand. No answer on its SSH port or ccminer API' : 'Not connected and ccminer not reachable') + (w.lastSeen ? ' · last seen ' + fmtAgo(w.lastSeen, state.stats.time) : '');
+          else if (w.status === 'idle') td.title = 'Switched on (it answers on ADB or SSH), but not mining through this proxy.';
+          else if (w.status === 'offline') td.title = 'No answer on ADB, SSH or the ccminer API' + (w.lastSeen ? ' · last seen ' + fmtAgo(w.lastSeen, state.stats.time) : '');
           break;
         }
         case 'name': {
-          const td = cell(tr, w.name, 'name');
+          const td = cell(tr, '', 'name');
+          const nb = document.createElement('button'); nb.className = 'namebtn'; nb.textContent = w.name; nb.title = 'Details and actions for ' + w.name;
+          nb.addEventListener('click', () => openDrawer(w.name));
+          td.appendChild(nb);
+          if (w.dupOf && w.dupOf.length) { const s = document.createElement('span'); s.className = 'dupe'; s.textContent = 'same phone as ' + w.dupOf.join(', '); s.title = 'Same Android ID: probably one phone under two names. Remove the old one.'; td.appendChild(s); }
           const col = seriesColorFor(w.name);
           if (col) { const k = document.createElement('i'); k.className = 'key'; k.style.background = col; td.appendChild(k); }
           if (w.connections > 1) { const s = document.createElement('span'); s.className = 'dim'; s.textContent = ' ×' + w.connections; td.appendChild(s); }
@@ -665,7 +769,27 @@ function renderTable() {
           break;
         }
         case 'make': cell(tr, w.make); break;
-        case 'model': cell(tr, w.model); break;
+        case 'model': {
+          const td = cell(tr, w.marketName || w.model);
+          if (w.marketName && w.model && w.marketName !== w.model) { const s = document.createElement('span'); s.className = 'dim'; s.textContent = ' ' + w.model; td.appendChild(s); }
+          break;
+        }
+        case 'root': {
+          const r = ROOT[w.root];
+          const td = cell(tr, r ? dot(r[0], r[1] + (w.root !== 'no' && w.rootKind && w.rootKind !== 'su' ? ' · ' + w.rootKind : ''), 'status rootb') : null);
+          if (r) td.title = r[2];
+          break;
+        }
+        case 'access': cell(tr, accessBadges(w)); break;
+        case 'storage': cell(tr, w.dataFreeMB ? (w.dataFreeMB / 1024).toFixed(1) + ' GB' : null, 'num'); break;
+        case 'termux': cell(tr, w.termux); break;
+        case 'userland': cell(tr, w.userland); break;
+        case 'info': {
+          const td = cell(tr, w.invTs ? fmtAgo(w.invTs, now) : null, 'num');
+          if (w.invError) { td.title = 'Last read failed: ' + w.invError; td.style.color = css('--serious'); }
+          break;
+        }
+        case 'notes': { const td = cell(tr, w.notes || null); td.style.maxWidth = '220px'; td.style.overflow = 'hidden'; td.style.textOverflow = 'ellipsis'; td.title = w.notes || ''; break; }
         case 'soc': cell(tr, w.soc); break;
         case 'os': cell(tr, w.os); break;
         case 'kernel': cell(tr, w.kernel); break;
@@ -708,8 +832,11 @@ function renderTable() {
         case 'firstSeen': cell(tr, w.firstSeen ? new Date(w.firstSeen).toLocaleDateString() : null, 'num'); break;
         case 'action': {
           const td = cell(tr, '');
+          const db = document.createElement('button'); db.className = 'sshbtn'; db.textContent = 'Details';
+          db.title = 'Device details and actions'; db.addEventListener('click', () => openDrawer(w.name));
+          td.appendChild(db);
           if (state.ssh && state.ssh.enabled) {
-            const b = document.createElement('button'); b.className = 'sshbtn'; b.textContent = 'SSH';
+            const b = document.createElement('button'); b.className = 'sshbtn'; b.textContent = 'Run';
             b.title = 'Run a command on ' + w.name;
             b.addEventListener('click', () => sshPick('d:' + w.name));
             td.appendChild(b);
@@ -939,7 +1066,7 @@ function renderAddPanel(result) {
 $('addBtn').addEventListener('click', (e) => {
   e.stopPropagation();
   const open = !$('addmenu').classList.contains('open');
-  $('colmenu').classList.remove('open'); $('groupmenu').classList.remove('open');
+  $('colmenu').classList.remove('open'); $('groupmenu').classList.remove('open'); $('findmenu').classList.remove('open');
   $('addmenu').classList.toggle('open', open);
   if (open) { renderAddPanel(); $('addText').focus(); }
 });
@@ -1257,6 +1384,13 @@ function sshPick(target) {
   $('sshCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
   $('sshCmd').focus({ preventScroll: true });
 }
+function sshChannels() {
+  const ss = state.ssh;
+  if (ss.channels && ss.channels.length) return ss.channels;
+  const ports = ss.ports || [{ port: ss.port }];
+  return ports.map(e => ({ id: 'ssh:' + e.port, kind: 'ssh', port: e.port, name: 'Port ' + e.port + (e.name ? ' · ' + e.name : ''), reason: null }));
+}
+function runChannel(r) { return r.channel && r.channel !== 'ssh' ? r.channel : 'ssh:' + (r.port || (state.ssh && state.ssh.port) || 8022); }
 function renderSsh() {
   const ss = state.ssh;
   // only shown when the proxy has remote commands switched on
@@ -1269,21 +1403,35 @@ function renderSsh() {
   const first = $('sshCard').hidden;
   $('sshCard').hidden = false;
   if (first && state.stats) renderTable();   // adds the SSH buttons to the rows
-  // port choice (from ssh.ports); each port can have its own login
+  // what to run through: Termux SSH (8022), UserLAnd SSH (2022), ADB shell, ADB root shell
   const ps = $('sshPort'), ports = ss.ports || [{ port: ss.port, user: ss.user, authMode: ss.authMode }];
-  const portSig = JSON.stringify(ports);
-  if (ps.dataset.sig !== portSig) {
-    const cur = Number(ps.value) || state.sshPortPick || ss.port;
-    ps.dataset.sig = portSig; ps.textContent = '';
-    for (const e of ports) { const o = document.createElement('option'); o.value = e.port; o.textContent = 'Port ' + e.port + (e.name ? ' · ' + e.name : ''); ps.appendChild(o); }
-    ps.value = ports.some(e => e.port === cur) ? cur : ss.port;
+  const chans = sshChannels();
+  const chanSig = JSON.stringify(chans);
+  if (ps.dataset.sig !== chanSig) {
+    const cur = ps.value || state.sshChanPick;
+    ps.dataset.sig = chanSig; ps.textContent = '';
+    for (const c of chans) {
+      const o = document.createElement('option'); o.value = c.id; o.textContent = c.name + (c.reason ? ' (off)' : '');
+      o.disabled = !!c.reason; if (c.reason) o.title = c.reason; ps.appendChild(o);
+    }
+    const ok = chans.filter(c => !c.reason);
+    ps.value = ok.some(c => c.id === cur) ? cur : (ok[0] || chans[0]).id;
   }
-  ps.hidden = ports.length < 2;
-  const pe = ports.find(e => e.port === Number(ps.value)) || ports[0];
-  $('sshHint').textContent = 'Runs over SSH as ' + pe.user + '@device:' + pe.port + ' · ' + (pe.authMode === 'password' ? 'password login' : 'key login') +
-    (ss.hostKeyCheck === 'off' ? ' · host keys not checked' : '') + ' · stops after ' + ss.timeoutSec + ' s' + (ss.allowCustom ? '' : ' · saved commands only');
+  ps.hidden = chans.length < 2;
+  const ch = chans.find(c => c.id === ps.value) || chans[0];
+  const tail = ' · stops after ' + ss.timeoutSec + ' s' + (ss.allowCustom ? '' : ' · saved commands only');
+  if (ch.kind === 'ssh') {
+    const pe = ports.find(e => e.port === ch.port) || ports[0];
+    $('sshHint').textContent = 'Runs over SSH as ' + pe.user + '@device:' + pe.port + ' · ' + (pe.authMode === 'password' ? 'password login' : 'key login') +
+      (ss.hostKeyCheck === 'off' ? ' · host keys not checked' : '') + tail;
+  } else {
+    $('sshHint').textContent = (ch.id === 'adbroot' ? 'Runs over ADB as root (through su)' : 'Runs over ADB as the Android shell user') + tail;
+  }
   $('sshCmd').readOnly = !ss.allowCustom;
-  $('sshCmd').placeholder = ss.allowCustom ? 'Command to run in Termux, e.g. uptime' : 'Pick a saved command below';
+  $('sshCmd').placeholder = !ss.allowCustom ? 'Pick a saved command below'
+    : ch.id === 'adb' ? 'Android shell command, e.g. getprop ro.product.model'
+    : ch.id === 'adbroot' ? 'Root shell command, e.g. dumpsys battery | head'
+    : ch.port === 2022 ? 'Command to run in UserLAnd, e.g. uname -a' : 'Command to run in Termux, e.g. uptime';
   fillSshTargets();
   // presets
   const pr = $('sshPresets');
@@ -1319,6 +1467,14 @@ function renderSsh() {
     pre('ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519\ncd ~/verusProxy && ./deploy/ssh-copy-key.sh');
   }
   para('Termux needs sshd running (`pkg install openssh`, set a password with `passwd`, then `sshd`; add `sshd` to ~/.termux/boot to start it with the phone).');
+  const reg = state.stats && state.stats.registry;
+  if (reg && reg.adb) {
+    if (reg.adb.enabled) {
+      para('ADB: the proxy connects to each phone on port ' + reg.adb.port + '. On rooted phones a Termux:Boot script keeps ADB on WiFi after every reboot (~/.termux/boot/adb-wifi):');
+      pre('#!/data/data/com.termux/files/usr/bin/sh\nsu -c settings put global adb_enabled 1\nsu -c setprop service.adb.tcp.port ' + reg.adb.port + '\nsu -c stop adbd\nsu -c start adbd');
+      para('The first connection from the proxy needs "Allow USB debugging" accepted on the phone, or use "Install ADB key" in a device\'s details (works over Termux SSH on rooted phones). "ADB root shell" needs root granted to Shell in Magisk/KernelSU.');
+    } else para('ADB: ' + reg.adb.reason);
+  }
   renderSshRuns();
 }
 function renderSshRuns() {
@@ -1337,12 +1493,15 @@ function renderSshRuns() {
     const caret = document.createElement('span'); caret.className = 'caret'; caret.textContent = state.sshOpen.has(r.id) ? '▾' : '▸';
     const when = document.createElement('span'); when.className = 'when';
     when.textContent = new Date(r.t).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const cmd = document.createElement('span'); cmd.className = 'cmd mono'; cmd.textContent = r.command; cmd.title = r.command;
+    // commands built by the proxy (e.g. "Install ADB key") show under their name
+    const internal = r.preset && !ss.presets.some(p => p.name === r.preset);
+    const cmd = document.createElement('span'); cmd.className = 'cmd' + (internal ? '' : ' mono'); cmd.textContent = internal ? r.preset : r.command; cmd.title = r.command;
     const counts = document.createElement('span'); counts.className = 'counts';
     if (r.ok) counts.appendChild(dot('--good', r.ok + ' ok', 'status'));
     if (r.failed) counts.appendChild(dot('--critical', r.failed + ' failed', 'status'));
     if (r.running) counts.appendChild(dot('--warning', r.running + ' running', 'status'));
-    head.append(caret, when, cmd, counts);
+    const via = document.createElement('span'); via.className = 'when'; via.textContent = r.via || ('port ' + (r.port || ''));
+    head.append(caret, when, via, cmd, counts);
     const toggle = () => { state.sshOpen.has(r.id) ? state.sshOpen.delete(r.id) : state.sshOpen.add(r.id); loadSshRun(r.id); };
     head.addEventListener('click', toggle);
     head.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
@@ -1354,17 +1513,18 @@ function renderSshRuns() {
 function renderRunBody(run) {
   const body = document.createElement('div'); body.className = 'run-body';
   const tools = document.createElement('div'); tools.className = 'run-tools';
-  tools.appendChild(document.createTextNode((run.by ? 'Run by ' + run.by + ' · ' : '') + run.targets.length + ' device' + (run.targets.length === 1 ? '' : 's') + (run.port ? ' · port ' + run.port : '')));
+  tools.appendChild(document.createTextNode((run.by ? 'Run by ' + run.by + ' · ' : '') + run.targets.length + ' device' + (run.targets.length === 1 ? '' : 's') + (run.summary && run.summary.via ? ' · via ' + run.summary.via : run.port ? ' · port ' + run.port : '')));
   const failed = run.targets.filter(t => t.state !== 'ok' && t.state !== 'running' && t.state !== 'queued').map(t => t.name);
-  if (failed.length && run.summary.done) {
+  const internal = run.preset && !state.ssh.presets.some(p => p.name === run.preset);
+  if (failed.length && run.summary.done && !internal) {
     const b = document.createElement('button'); b.className = 'btn small'; b.textContent = 'Retry ' + failed.length + ' failed';
-    b.addEventListener('click', (e) => { e.stopPropagation(); sshRun(failed, run.command, run.preset, run.port); });
+    b.addEventListener('click', (e) => { e.stopPropagation(); sshRun(failed, run.command, run.preset, runChannel(run)); });
     tools.appendChild(b);
   }
   const again = document.createElement('button'); again.className = 'btn small'; again.textContent = 'Use command';
   again.title = 'Put this command in the box above';
-  again.addEventListener('click', (e) => { e.stopPropagation(); $('sshCmd').value = run.command; state.sshPreset = run.preset; $('sshCmd').focus(); });
-  tools.appendChild(again);
+  again.addEventListener('click', (e) => { e.stopPropagation(); $('sshCmd').value = run.command; state.sshPreset = run.preset; const pc = runChannel(run); if ([...$('sshPort').options].some(o => o.value === pc && !o.disabled)) { $('sshPort').value = pc; renderSsh(); } $('sshCmd').focus(); });
+  if (!internal) tools.appendChild(again);
   body.appendChild(tools);
   // failures first, then by name
   const order = { error: 0, timeout: 0, failed: 1, running: 2, queued: 3, ok: 4 };
@@ -1390,14 +1550,15 @@ async function loadSshRun(id) {
   try { state.sshFull[id] = state.demo ? Demo.sshGet(id) : await getJSON('api/ssh/run?id=' + encodeURIComponent(id)); } catch (e) {}
   renderSshRuns();
 }
-async function sshRun(names, command, preset, port) {
+async function sshRun(names, command, preset, chan) {
   if (!names.length) { alert('No devices selected.'); return; }
   if (!command.trim()) { alert('Type a command first.'); return; }
   const list = names.length <= 8 ? names.join(', ') : names.slice(0, 8).join(', ') + ' and ' + (names.length - 8) + ' more';
-  const portNote = port && state.ssh.ports && state.ssh.ports.length > 1 ? ' on port ' + port : '';
-  if (!confirm('Run on ' + names.length + ' device' + (names.length === 1 ? '' : 's') + portNote + ' (' + list + '):\n\n' + command)) return;
+  const chans = sshChannels(), ch = chans.find(c => c.id === chan) || chans[0];
+  const via = chans.length > 1 ? ' via ' + ch.name : '';
+  if (!confirm('Run on ' + names.length + ' device' + (names.length === 1 ? '' : 's') + via + ' (' + list + '):\n\n' + command)) return;
   const body = { workers: names };
-  if (port) body.port = port;
+  if (ch.kind === 'ssh') body.port = ch.port; else body.channel = ch.id;
   if (preset && state.ssh.presets.some(p => p.name === preset && p.command === command)) body.preset = preset; else body.command = command;
   let res;
   try {
@@ -1424,11 +1585,11 @@ function sshPoll() {
     sshPoll();
   }, 1200);
 }
-$('sshRun').addEventListener('click', () => sshRun(sshTargets(), $('sshCmd').value, state.sshPreset, Number($('sshPort').value) || null));
+$('sshRun').addEventListener('click', () => sshRun(sshTargets(), $('sshCmd').value, state.sshPreset, $('sshPort').value));
 $('sshCmd').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('sshRun').click(); });
 $('sshCmd').addEventListener('input', () => { if (state.sshPreset) { state.sshPreset = null; renderSsh(); } });
-$('sshPort').addEventListener('change', () => { state.sshPortPick = Number($('sshPort').value); store.set('sshPort', state.sshPortPick); renderSsh(); });
-state.sshPortPick = store.get('sshPort', null);
+$('sshPort').addEventListener('change', () => { state.sshChanPick = $('sshPort').value; store.set('sshChan', state.sshChanPick); renderSsh(); });
+state.sshChanPick = store.get('sshChan', null) || (store.get('sshPort', null) ? 'ssh:' + store.get('sshPort', null) : null);
 $('sshSetupBtn').addEventListener('click', () => { $('sshSetup').hidden = !$('sshSetup').hidden; });
 
 // ---------- data ----------
@@ -1464,7 +1625,12 @@ async function loadStats(force) {
   // group lines depend on membership: redraw the chart only when that changes
   const sig = ws.map(w => w.name + '=' + (w.group || '')).join('|') + '#' + Array.from(gn).join('|');
   if (sig !== state.groupSig) { state.groupSig = sig; renderChart(); }
+  const reg = state.stats.registry;
+  $('findmenu').hidden = !(reg && reg.adb && (reg.adb.enabled || state.demo));
+  $('fRoot').hidden = !ws.some(w => w.root);
   renderKpis(); renderTable();
+  renderDrawer();
+  if ($('findmenu').classList.contains('open') && !$('findPanel').contains(document.activeElement)) renderFindPanel();
   loadPools();
   loadSsh();
 }
@@ -1491,6 +1657,271 @@ async function forget(name) {
   state.plotted = state.plotted.filter(n => n !== name); store.set('plotted', state.plotted);
   loadStats();
 }
+// ---------- device registry: details drawer ----------
+async function regAction(path, body) {
+  if (state.demo) return Demo.regAction(path, body || {});
+  try {
+    const r = await fetch('api/' + path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-VP-Control': '1' }, body: JSON.stringify(body || {}) });
+    return await r.json().catch(() => ({ ok: false, error: 'HTTP ' + r.status }));
+  } catch (e) { return { ok: false, error: 'proxy unreachable' }; }
+}
+function openDrawer(name) {
+  state.drawer = name; state.drawerMsg = null; state.drawerNotes = null;
+  renderDrawer();
+  $('drawer').classList.add('open'); $('scrim').classList.add('open'); $('drawer').setAttribute('aria-hidden', 'false');
+  const c = $('drawer').querySelector('.dr-close'); if (c) c.focus({ preventScroll: true });
+}
+function closeDrawer() {
+  state.drawer = null;
+  $('drawer').classList.remove('open'); $('scrim').classList.remove('open'); $('drawer').setAttribute('aria-hidden', 'true');
+}
+$('scrim').addEventListener('click', closeDrawer);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && state.drawer) closeDrawer(); });
+function factList(rows) {
+  const dl = document.createElement('dl'); dl.className = 'facts';
+  for (const [k, v, mono] of rows) {
+    if (v === null || v === undefined || v === '') continue;
+    const dt = document.createElement('dt'); dt.textContent = k;
+    const dd = document.createElement('dd'); if (mono) dd.className = 'mono'; if (v instanceof Node) dd.appendChild(v); else dd.textContent = v;
+    dl.append(dt, dd);
+  }
+  return dl;
+}
+function renderDrawer() {
+  if (!state.drawer || !state.stats) return;
+  const d = $('drawer');
+  // don't rebuild under the notes being typed
+  if (d.contains(document.activeElement) && document.activeElement.tagName === 'TEXTAREA') return;
+  const w = state.stats.workers.find(x => x.name === state.drawer);
+  d.textContent = '';
+  const head = document.createElement('div'); head.className = 'dr-head';
+  const ttl = document.createElement('div');
+  const h = document.createElement('h2'); h.textContent = state.drawer; ttl.appendChild(h);
+  const close = document.createElement('button'); close.className = 'dr-close'; close.textContent = '×'; close.setAttribute('aria-label', 'Close'); close.addEventListener('click', closeDrawer);
+  head.append(ttl, close); d.appendChild(head);
+  if (!w) { const p = document.createElement('div'); p.className = 'dr-msg'; p.textContent = 'This device is no longer in the list.'; d.appendChild(p); return; }
+  const inv = w.inv || {}, now = state.stats.time, reg = state.stats.registry || {}, adbOn = !!(reg.adb && reg.adb.enabled);
+  const sub = document.createElement('div'); sub.className = 'sub';
+  const [sc, sl] = STATUS[w.status] || STATUS.offline;
+  sub.appendChild(dot(sc, sl, 'status'));
+  const desc = [w.make, w.marketName || w.model, w.os].filter(Boolean).join(' · ');
+  if (desc) sub.appendChild(document.createTextNode('  ·  ' + desc));
+  ttl.appendChild(sub);
+  if (w.dupOf && w.dupOf.length) { const x = document.createElement('div'); x.className = 'dr-warn'; x.textContent = 'Same phone (same Android ID) as ' + w.dupOf.join(', ') + '. Probably renamed or added twice: remove the name you no longer use.'; d.appendChild(x); }
+
+  // actions
+  const act = document.createElement('div'); act.className = 'dr-actions';
+  const btn = (label, title, fn, disabled) => { const b = document.createElement('button'); b.className = 'btn small'; b.textContent = label; b.title = title; b.disabled = !!disabled; b.addEventListener('click', fn); act.appendChild(b); return b; };
+  const run = async (label, path, body, okText) => {
+    state.drawerMsg = { text: label + '…' }; renderDrawer();
+    const r = await regAction(path, body);
+    state.drawerMsg = r.ok ? { text: okText(r) } : { text: (r.error || (r.results && r.results[0] && r.results[0].error) || 'failed'), bad: true };
+    await loadStats(true);
+    renderDrawer();
+    return r;
+  };
+  if (adbOn) {
+    btn('Refresh info', 'Read make, model, Android, root, apps and battery over ADB now', () => run('Reading device info', 'registry/refresh', { workers: [w.name] }, (r) => r.results && r.results[0] && r.results[0].ok ? 'Device info updated.' : (r.results && r.results[0] ? r.results[0].error : 'done')));
+    btn('Reconnect ADB', 'Drop and re-open the ADB connection', () => run('Reconnecting', 'registry/reconnect', { worker: w.name }, (r) => 'ADB: ' + r.state));
+    btn('Reboot', 'Restart the phone over ADB', () => { if (confirm('Reboot ' + w.name + '? Mining stops until the phone is back up and Termux:Boot starts ccminer again.')) run('Rebooting', 'registry/reboot', { worker: w.name }, () => 'Reboot sent.'); });
+    if (state.ssh && state.ssh.sshEnabled !== false && state.ssh.enabled && (!w.conn || w.conn.adb !== 'device')) {
+      btn('Install ADB key', 'Over Termux SSH with su: allow this proxy\'s ADB key on the phone and restart ADB on port ' + reg.adb.port + ' (rooted phones)', async () => {
+        if (!confirm('Install the proxy\'s ADB key on ' + w.name + ' over Termux SSH (needs root), and restart ADB on port ' + reg.adb.port + '?')) return;
+        const r = await run('Installing ADB key', 'registry/install-key', { workers: [w.name] }, () => 'Started over Termux SSH: see Remote commands for the result.');
+        if (r.ok && r.id) { state.sshOpen = new Set([r.id]); await loadSsh(); await loadSshRun(r.id); sshPoll(); }
+      });
+    }
+  }
+  if (state.ssh && state.ssh.enabled) btn('Run command', 'Pick this device in Remote commands', () => { closeDrawer(); sshPick('d:' + w.name); });
+  if ((w.status === 'offline' || w.status === 'idle') && (!state.demo || w.manual)) btn(w.manual ? 'Remove' : 'Forget', 'Remove this device from the list', () => { if (confirm('Remove ' + w.name + (w.ip ? ' (' + w.ip + ')' : '') + ' from the list?')) { closeDrawer(); forget(w.name); } });
+  d.appendChild(act);
+  const msg = document.createElement('div'); msg.className = 'dr-msg' + (state.drawerMsg && state.drawerMsg.bad ? ' bad' : ''); msg.textContent = state.drawerMsg ? state.drawerMsg.text : '';
+  d.appendChild(msg);
+  if (!adbOn && reg.adb && reg.adb.reason) { const x = document.createElement('div'); x.className = 'dr-warn'; x.textContent = reg.adb.reason; d.appendChild(x); }
+
+  // connections
+  const parts = accessParts(w);
+  if (parts.length) {
+    const h3 = document.createElement('h3'); h3.textContent = 'Connections' + (w.conn && w.conn.ts ? ' · checked ' + fmtAgo(w.conn.ts, now) : ''); d.appendChild(h3);
+    for (const [label, st, why] of parts) {
+      const row = document.createElement('div'); row.className = 'conn-row';
+      const b = document.createElement('b'); b.appendChild(dot(ACC_COLOR[st], label, 'status')); row.appendChild(b);
+      const t = document.createElement('span'); t.className = 'why'; t.textContent = why; row.appendChild(t);
+      d.appendChild(row);
+    }
+  }
+
+  // device facts
+  const h3 = document.createElement('h3'); h3.textContent = 'Device' + (w.invTs ? ' · read over ADB ' + fmtAgo(w.invTs, now) : w.agentSeen ? ' · from the device agent' : ''); d.appendChild(h3);
+  if (w.invError) { const x = document.createElement('div'); x.className = 'dr-msg bad'; x.textContent = 'Last read failed: ' + w.invError; d.appendChild(x); }
+  const gb = (mb) => mb ? (mb / 1024).toFixed(1) + ' GB' : null;
+  const r = inv.root || null;
+  d.appendChild(factList([
+    ['Make', [w.make, inv.brand && inv.brand.toLowerCase() !== (w.make || '').toLowerCase() ? '(' + inv.brand + ')' : ''].filter(Boolean).join(' ')],
+    ['Model', [w.marketName, w.model].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' · ')],
+    ['Codename', inv.device],
+    ['Android', inv.android ? inv.android + (inv.sdk ? ' (SDK ' + inv.sdk + ')' : '') + (inv.securityPatch ? ' · patch ' + inv.securityPatch : '') : w.os],
+    ['Build', inv.build, true],
+    ['SoC', w.soc],
+    ['CPU', [w.cores ? w.cores + ' cores' : null, w.arch].filter(Boolean).join(' · ')],
+    ['RAM', gb(w.ramMB)],
+    ['Storage', inv.dataTotalMB ? gb(inv.dataFreeMB) + ' free of ' + gb(inv.dataTotalMB) : null],
+    ['Kernel', w.kernel, true],
+    ['Battery', [w.batteryLevel != null ? Math.round(w.batteryLevel) + '%' : null, w.batteryTemp != null ? w.batteryTemp.toFixed(1) + ' °C' : null, inv.batteryStatus].filter(Boolean).join(' · ')],
+    ['Up for', w.deviceUptime ? fmtDur(w.deviceUptime) : null],
+    ['WiFi', [w.ip, inv.wlanMac].filter(Boolean).join(' · '), true],
+    ['Serial', inv.serial, true],
+    ['Android ID', w.androidId, true]
+  ]));
+  if (w.inv) {
+    const h4 = document.createElement('h3'); h4.textContent = 'Root & apps'; d.appendChild(h4);
+    const R = ROOT[w.root];
+    d.appendChild(factList([
+      ['Root', R ? dot(R[0], r && r.su ? (r.kind || 'su') + (r.version ? ' ' + r.version : '') : 'Not rooted', 'status') : null],
+      ['ADB root', r && r.su ? (r.adbGranted ? 'Yes (ADB root shell works)' : 'No: grant root to Shell (com.android.shell) in ' + (r.kind || 'the root app')) : null],
+      ['Termux', inv.termux || 'not installed'],
+      ['Termux:Boot', inv.termuxBoot || (inv.termux ? 'not installed (needed to start ADB and ccminer at boot)' : null)],
+      ['Termux:API', inv.termuxApi],
+      ['UserLAnd', inv.userland]
+    ]));
+  }
+  const h5 = document.createElement('h3'); h5.textContent = 'Mining'; d.appendChild(h5);
+  d.appendChild(factList([
+    ['Hashrate', w.repHashrate ? fmtH(w.repHashrate) + (w.viaProxy === false ? ' (not through this proxy)' : '') : null],
+    ['Miner', w.software],
+    ['Pool', w.minerPoolUrl, true],
+    ['Process', inv.ccminerProcess || (w.inv ? 'ccminer not running' : null), true],
+    ['Wallet', w.address, true],
+    ['First seen', w.firstSeen ? new Date(w.firstSeen).toLocaleString() : null]
+  ]));
+  if (!w.inv && !w.agentSeen) { const x = document.createElement('div'); x.className = 'dr-msg'; x.textContent = adbOn ? 'No device info yet: it is read over ADB once the phone accepts the connection.' : 'Device info is read over ADB, which is off.'; d.appendChild(x); }
+
+  // notes
+  const h6 = document.createElement('h3'); h6.textContent = 'Notes'; d.appendChild(h6);
+  const ta = document.createElement('textarea'); ta.value = state.drawerNotes !== null && state.drawerNotes !== undefined ? state.drawerNotes : (w.notes || '');
+  ta.placeholder = 'e.g. shelf 2, cracked screen, battery swollen…'; ta.maxLength = 500; ta.setAttribute('aria-label', 'Notes for ' + w.name);
+  ta.addEventListener('input', () => { state.drawerNotes = ta.value; });
+  const nb = document.createElement('div'); nb.className = 'dr-actions';
+  const save = document.createElement('button'); save.className = 'btn small'; save.textContent = 'Save notes';
+  save.addEventListener('click', async () => {
+    const r = await regAction('devices/notes', { worker: w.name, notes: ta.value });
+    state.drawerNotes = null; state.drawerMsg = r.ok ? { text: 'Notes saved.' } : { text: r.error || 'not saved', bad: true };
+    ta.blur(); await loadStats(true);
+  });
+  nb.appendChild(save);
+  d.append(ta, nb);
+}
+
+// ---------- device registry: find phones (USB + network scan) ----------
+const slug = (s) => String(s || '').replace(/[^a-zA-Z0-9._@-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64);
+function renderFindPanel(result) {
+  const p = $('findPanel'); p.textContent = '';
+  const reg = (state.stats && state.stats.registry) || {};
+  const box = document.createElement('div'); box.className = 'find'; p.appendChild(box);
+  const help = (t) => { const e = document.createElement('p'); e.className = 'help'; e.textContent = t; box.appendChild(e); return e; };
+  const h4 = (t) => { const e = document.createElement('h4'); e.textContent = t; box.appendChild(e); };
+  if (!reg.adb || !reg.adb.enabled) { help(reg.adb ? reg.adb.reason : 'ADB is off.'); return; }
+  const say = (r) => { if (!r) return; const e = document.createElement('div'); e.className = 'dr-msg' + (r.bad ? ' bad' : ''); e.textContent = r.text; box.appendChild(e); };
+  // USB
+  h4('On USB');
+  help('Phones plugged into the proxy machine. "Switch to WiFi" turns on ADB over WiFi (port ' + reg.adb.port + ') and adds the phone by its WiFi address; unplug it afterwards.');
+  if (!reg.usb || !reg.usb.length) help('No phones on USB right now.');
+  for (const u of reg.usb || []) {
+    const row = document.createElement('div'); row.className = 'find-row';
+    row.appendChild(dot(u.state === 'device' ? '--good' : '--warning', '', 'status'));
+    const what = document.createElement('div'); what.className = 'what'; what.textContent = u.model || u.serial;
+    const dim = document.createElement('span'); dim.className = 'dim'; dim.textContent = u.serial + ' · ' + (u.state === 'device' ? 'ready' : u.state); what.appendChild(dim);
+    row.appendChild(what);
+    const right = document.createElement('div');
+    if (u.registered) right.textContent = 'Added as ' + u.registered;
+    else if (u.state === 'unauthorized') { right.className = 'dim'; right.textContent = 'Accept "Allow USB debugging" on the phone'; right.style.fontSize = '12px'; right.style.color = css('--ink-2'); }
+    else if (u.state === 'device') {
+      const inp = document.createElement('input'); inp.type = 'text'; inp.value = slug(u.model) || 'phone'; inp.setAttribute('aria-label', 'Name for ' + (u.model || u.serial));
+      const b = document.createElement('button'); b.className = 'btn small'; b.textContent = 'Switch to WiFi & add';
+      b.addEventListener('click', async () => {
+        b.disabled = true; b.textContent = 'Switching…';
+        const r = await regAction('registry/usb-enable', { serial: u.serial, name: inp.value.trim(), group: $('findGroup') ? findGroupValue() : null });
+        await loadStats(true);
+        renderFindPanel(r.ok ? { text: 'Added ' + r.name + ' at ' + r.ip + '. You can unplug it now.' } : { text: r.error, bad: true });
+      });
+      right.style.display = 'flex'; right.style.gap = '6px'; right.append(inp, b);
+    }
+    row.appendChild(right);
+    box.appendChild(row);
+  }
+  // network scan
+  const sep = document.createElement('div'); sep.className = 'sep'; box.appendChild(sep);
+  h4('On the network');
+  const scan = reg.lastScan;
+  help('Looks for phones with ADB on port ' + reg.adb.port + (scan ? ' in ' + scan.ranges.join(', ') : ' on the proxy\'s local network') + '. Known phones that got a new address are updated automatically (matched by Android ID).');
+  const bar = document.createElement('div'); bar.className = 'bar';
+  const sb = document.createElement('button'); sb.className = 'btn small'; sb.textContent = state.scanning ? 'Scanning…' : 'Scan network'; sb.disabled = !!state.scanning;
+  sb.addEventListener('click', async () => {
+    state.scanning = true; renderFindPanel();
+    const r = await regAction('registry/scan', {});
+    state.scanning = false;
+    if (state.demo && r.ok) state.stats.registry.lastScan = r;
+    await loadStats(true);
+    renderFindPanel(r.ok ? null : { text: r.error, bad: true });
+  });
+  bar.appendChild(sb);
+  if (scan) { const t = document.createElement('span'); t.textContent = 'Last scan ' + fmtAgo(scan.t, Date.now()) + ' · ' + scan.found.length + ' with ADB open'; bar.appendChild(t); }
+  box.appendChild(bar);
+  const picks = [];
+  for (const f of (scan && scan.found) || []) {
+    const row = document.createElement('div'); row.className = 'find-row';
+    const known = f.knownAs;
+    let cb = null;
+    if (known) row.appendChild(dot('--good', '', 'status'));
+    else { cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = f.state === 'device'; cb.setAttribute('aria-label', 'Add ' + f.ip); row.appendChild(cb); }
+    const what = document.createElement('div'); what.className = 'what';
+    what.textContent = f.marketName || f.model || (f.state === 'unauthorized' ? 'Phone (not allowed yet)' : 'Unknown device');
+    const dim = document.createElement('span'); dim.className = 'dim';
+    dim.textContent = [f.ip, f.make, f.state === 'device' ? null : f.state === 'unauthorized' ? 'needs "Allow USB debugging"' : f.state].filter(Boolean).join(' · ');
+    what.appendChild(dim); row.appendChild(what);
+    const right = document.createElement('div');
+    if (known) { right.textContent = known + (f.moved ? ' (address updated)' : ''); right.style.color = css('--ink-2'); right.style.fontSize = '12.5px'; }
+    else {
+      const inp = document.createElement('input'); inp.type = 'text'; inp.value = f.suggestedName; inp.setAttribute('aria-label', 'Name for ' + f.ip);
+      right.appendChild(inp); picks.push({ f, cb, inp });
+    }
+    row.appendChild(right);
+    box.appendChild(row);
+  }
+  if (picks.length) {
+    const bar2 = document.createElement('div'); bar2.className = 'bar';
+    bar2.appendChild(document.createTextNode('Group'));
+    const gsel = document.createElement('select'); gsel.id = 'findGroup'; gsel.setAttribute('aria-label', 'Group for the added phones');
+    for (const [v, t] of [['', 'No group'], ...groupNames().map(n => [n, n]), [NEW_GROUP, 'New group…']]) { const o = document.createElement('option'); o.value = v; o.textContent = t; gsel.appendChild(o); }
+    const sp = document.createElement('span'); sp.className = 'spacer';
+    const add = document.createElement('button'); add.className = 'btn small'; add.textContent = 'Add selected';
+    add.addEventListener('click', async () => {
+      const devices = picks.filter(x => x.cb.checked).map(x => ({ ip: x.f.ip, name: x.inp.value.trim() }));
+      if (!devices.length) return;
+      const group = findGroupValue(); if (group === false) return;
+      const r = await regAction('registry/add-found', { devices, group });
+      await loadStats(true);
+      const bad = (r.results || []).filter(x => !x.ok);
+      renderFindPanel(r.ok ? { text: 'Added ' + r.added + ' phone' + (r.added === 1 ? '' : 's') + '.' + (bad.length ? ' Not added: ' + bad.map(x => x.ip + ' (' + x.error + ')').join(', ') : ''), bad: bad.length > 0 } : { text: r.error || (bad[0] && bad[0].error) || 'not added', bad: true });
+    });
+    bar2.append(gsel, sp, add);
+    box.appendChild(bar2);
+  }
+  say(result);
+}
+function findGroupValue() {
+  const g = $('findGroup'); if (!g) return null;
+  if (g.value === NEW_GROUP) { const n = (prompt('Name of the new group:') || '').trim(); return n || false; }
+  return g.value || null;
+}
+$('findBtn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const open = !$('findmenu').classList.contains('open');
+  for (const id of ['colmenu', 'groupmenu', 'addmenu']) $(id).classList.remove('open');
+  $('findmenu').classList.toggle('open', open);
+  if (open) renderFindPanel();
+});
+
 function startDemo() {
   state.demo = true;
   $('demoBadge').hidden = false;
@@ -1517,8 +1948,8 @@ bindSeg('themeSeg', 'theme', () => {
 });
 bindSeg('rangeSeg', 'range', loadHistory);
 bindSeg('metricSeg', 'metric', () => { loadHistory(); if (state.stats) { renderKpis(); renderTable(); } });
-for (const id of ['q', 'fStatus', 'fGroup', 'fMake', 'fOs', 'fTemp']) $(id).addEventListener('input', () => { renderTable(); renderChart(); if (state.ssh && state.ssh.enabled) fillSshTargets(); });
-$('clearFilters').addEventListener('click', () => { $('q').value = ''; for (const id of ['fStatus', 'fGroup', 'fMake', 'fOs', 'fTemp']) $(id).value = ''; renderTable(); renderChart(); });
+for (const id of ['q', 'fStatus', 'fGroup', 'fMake', 'fOs', 'fRoot', 'fTemp']) $(id).addEventListener('input', () => { renderTable(); renderChart(); if (state.ssh && state.ssh.enabled) fillSshTargets(); });
+$('clearFilters').addEventListener('click', () => { $('q').value = ''; for (const id of ['fStatus', 'fGroup', 'fMake', 'fOs', 'fRoot', 'fTemp']) $(id).value = ''; renderTable(); renderChart(); });
 $('plotGroups').addEventListener('click', () => {
   state.plotted = groupNames().slice(0, 6).map(n => 'g:' + n); store.set('plotted', state.plotted);
   renderTable(); renderChart();
@@ -1543,6 +1974,7 @@ document.addEventListener('click', (e) => {
   if (!$('colmenu').contains(e.target)) $('colmenu').classList.remove('open');
   if (!$('groupmenu').contains(e.target) && document.contains(e.target)) $('groupmenu').classList.remove('open');
   if (!$('addmenu').contains(e.target) && document.contains(e.target)) $('addmenu').classList.remove('open');
+  if (!$('findmenu').contains(e.target) && document.contains(e.target)) $('findmenu').classList.remove('open');
 });
 let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(renderChart, 120); });
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (state.stats) { renderTable(); renderChart(); } });
@@ -1570,8 +2002,31 @@ const Demo = (() => {
       kernel: isPi ? '6.6.31-v8+' : '4.19.' + (100 + Math.floor(rnd() * 150)), arch: 'aarch64', cores: mo[4], ramMB: isPi ? 8000 : 6000 + Math.floor(rnd() * 3) * 2000,
       base, temp: 48 + rnd() * 28 + (base > 10e6 ? 6 : 0), bat: isPi ? null : 30 + rnd() * 9, lvl: isPi ? null : 60 + Math.floor(rnd() * 40),
       ip: '192.168.1.' + (101 + i), since: now0 - (2 + rnd() * 70) * 3600e3, status, born: now0 - (10 + rnd() * 25) * 86400e3,
-      acc: Math.floor(base / 1e6 * 900 * (1 + rnd())), rej: Math.floor(rnd() * 8)
+      acc: Math.floor(base / 1e6 * 900 * (1 + rnd())), rej: Math.floor(rnd() * 8),
+      // registry: rooted or not, ways in, apps
+      root: isPi ? null : (i % 6 === 5 ? 'su' : i % 8 === 7 ? 'no' : 'yes'), rootKind: i % 5 === 2 ? 'KernelSU' : 'Magisk',
+      adb: isPi ? 'closed' : (i === 9 ? 'unauthorized' : status === 'offline' ? null : 'device'), userland: !isPi && i % 4 === 1,
+      aid: Array.from({ length: 16 }, () => '0123456789abcdef'[Math.floor(rnd() * 16)]).join(''), invAgo: (1 + rnd() * 9) * 60e3, notes: i === 3 ? 'Shelf A, top row. Swollen battery, watch temps.' : ''
     });
+  }
+  const demoReg = {
+    adb: { enabled: true, reason: null, version: '1.0.41', port: 5555, inventoryEveryMin: 10 },
+    sshPorts: [{ port: 8022, name: 'Termux' }, { port: 2022, name: 'UserLAnd' }],
+    usb: [{ serial: 'R58N70XYZ1', state: 'device', usb: true, model: 'SM-A525F', registered: null }, { serial: '9B2AY1Q8', state: 'unauthorized', usb: true, model: null, registered: null }],
+    lastScan: null
+  };
+  function invFor(d, now) {
+    if (d.status === 'offline' && d.adb === null) return null;
+    if (!d.root) return null;
+    return {
+      make: d.make, brand: d.make, model: d.model, marketName: d.model, device: d.model.toLowerCase().replace(/[^a-z0-9]/g, ''), android: (d.os || '').replace('Android ', ''), sdk: 30 + Number((d.os || '').slice(-2)) - 11,
+      securityPatch: '2024-05-01', build: 'UP1A.231005.007', abi: 'arm64-v8a', soc: d.soc, kernel: d.kernel, cores: d.cores, ramMB: d.ramMB,
+      dataFreeMB: 20000 + Math.floor(d.base / 1e3) % 40000, dataTotalMB: 119000, uptimeSec: Math.floor((now - d.since) / 1000), androidId: d.aid, serial: 'R5' + d.aid.slice(0, 8).toUpperCase(),
+      wlanIp: d.ip, wlanMac: 'a4:' + d.aid.slice(0, 10).match(/../g).join(':'), batteryLevel: d.lvl, batteryTemp: d.bat, batteryStatus: 'charging', powered: true,
+      root: { su: d.root !== 'no', kind: d.root === 'no' ? null : d.rootKind, version: d.root === 'no' ? null : (d.rootKind === 'Magisk' ? '27.0:MAGISK' : 'v1.0.1:KernelSU'), adbGranted: d.root === 'yes' },
+      termux: '0.118.1', termuxBoot: '0.8.1', termuxApi: '0.50.1', userland: d.userland ? '3.1.8' : null,
+      ccminerProcess: d.status === 'offline' ? null : './ccminer -a verus -o stratum+tcp://192.168.1.10:8000 -u RDemo.' + d.name + ' -t ' + d.cores
+    };
   }
   // demo groups: by shelf, plus the single-board computers
   const demoGroupNames = ['Shelf A', 'Shelf B', 'SBCs'];
@@ -1605,9 +2060,15 @@ const Demo = (() => {
         minerSource: 'api', threads: on ? Array(d.cores).fill(0) : null, cpuFreq: on ? 1800 + Math.floor(rnd() * 900) : null, ping: on ? 20 + Math.floor(rnd() * 40) : null,
         cpuTemp: on ? Math.round((d.temp + rnd() * 2) * 10) / 10 : null, make: d.make, model: d.model, soc: d.soc, os: d.os, kernel: d.kernel, arch: d.arch,
         cores: d.cores, ramMB: d.ramMB, batteryTemp: on && d.bat ? Math.round((d.bat + rnd()) * 10) / 10 : null, batteryLevel: on ? d.lvl : null,
-        charging: d.lvl ? 'Charging' : null, load: on ? d.cores - rnd() * 0.3 : null, deviceUptime: null, agentSeen: now
+        charging: d.lvl ? 'Charging' : null, load: on ? d.cores - rnd() * 0.3 : null, deviceUptime: null, agentSeen: d.manual ? null : now,
+        marketName: null, android: null, root: d.root || null, rootKind: d.root && d.root !== 'no' ? d.rootKind : null, termux: d.root ? '0.118.1' : null, userland: d.userland ? '3.1.8' : null,
+        dataFreeMB: null, androidId: d.root ? d.aid : null, dupOf: null, notes: d.notes || '',
+        conn: { adb: d.adb, adbMsg: d.adb === 'unauthorized' ? 'Phone has not allowed this proxy: accept "Allow USB debugging" on the phone, or use "Install ADB key".' : null, adbPort: !!d.adb && d.adb !== 'closed',
+          ports: d.status === 'offline' ? { 8022: false, 2022: false } : { 8022: !/^sbc/.test(d.name), 2022: !!d.userland }, ts: now - 20e3 },
+        invTs: d.root ? now - d.invAgo : null, invError: null, inv: invFor(d, now)
       };
     });
+    workers.forEach(w => { if (w.inv) w.dataFreeMB = w.inv.dataFreeMB; });
     const on = workers.filter(w => w.status !== 'offline' && w.status !== 'idle'), temps = on.map(w => w.cpuTemp).filter(Boolean);
     return {
       time: now, startedAt: now0 - 5.2 * 86400e3, pool: demoPools.pools[demoPools.active].name, hashrateWindowSec: 600, poolConnections: [],
@@ -1618,6 +2079,7 @@ const Demo = (() => {
         avgTemp: temps.reduce((a, b) => a + b, 0) / temps.length, maxTemp: Math.max(...temps)
       },
       groups: demoGroupNames.map(n => ({ name: n, members: devs.filter(d => d.group === n).length })),
+      registry: demoReg,
       workers
     };
   }
@@ -1669,7 +2131,10 @@ const Demo = (() => {
   }
   // remote commands demo: fake results so the panel can be tried without devices
   const sshDemo = {
-    enabled: true, user: 'eek', port: 8022, timeoutSec: 60, allowCustom: true, proxyUser: 'pi',
+    enabled: true, sshEnabled: true, user: 'eek', port: 8022, timeoutSec: 60, allowCustom: true, proxyUser: 'pi',
+    ports: [{ port: 8022, name: 'Termux', user: 'eek', authMode: 'password' }, { port: 2022, name: 'UserLAnd', user: 'root', authMode: 'password' }], authMode: 'password', hostKeyCheck: 'off',
+    channels: [{ id: 'ssh:8022', kind: 'ssh', port: 8022, name: 'Termux SSH (8022)', reason: null }, { id: 'ssh:2022', kind: 'ssh', port: 2022, name: 'UserLAnd SSH (2022)', reason: null },
+      { id: 'adb', kind: 'adb', name: 'ADB shell', reason: null }, { id: 'adbroot', kind: 'adb', name: 'ADB root shell', reason: null }],
     publicKey: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDemoKeyOnlyForTheDemoPageNotARealKey0000 pi@verusproxy',
     presets: [{ name: 'Uptime', command: 'uptime' }, { name: 'ccminer running?', command: "pgrep -af ccminer || echo 'ccminer is NOT running'" },
       { name: 'Battery', command: 'termux-battery-status' }, { name: 'Disk & memory', command: 'df -h $HOME | tail -n 1; free -m | head -n 2' }, { name: 'Stop ccminer', command: 'pkill -f ccminer' }],
@@ -1686,12 +2151,13 @@ const Demo = (() => {
   function sshSummary(r) {
     const c = { ok: 0, failed: 0, running: 0 };
     r.targets.forEach(t => { if (t.state === 'ok') c.ok++; else if (t.state === 'running' || t.state === 'queued') c.running++; else c.failed++; });
-    return { id: r.id, t: r.t, by: 'admin', command: r.command, preset: r.preset, count: r.targets.length, ...c, done: c.running === 0 };
+    const via = r.channel === 'adb' ? 'ADB' : r.channel === 'adbroot' ? 'ADB root' : (r.port === 2022 ? 'UserLAnd 2022' : 'Termux 8022');
+    return { id: r.id, t: r.t, by: 'admin', command: r.command, preset: r.preset, channel: r.channel || 'ssh', port: r.port || 8022, via, count: r.targets.length, ...c, done: c.running === 0 };
   }
   function sshInfo() { sshDemo.runs = sshRuns.map(sshSummary); return sshDemo; }
   function sshStart(body) {
     const command = body.command || sshDemo.presets.find(p => p.name === body.preset).command;
-    const r = { id: 'demo' + sshRuns.length, t: Date.now(), by: 'admin', command, preset: body.preset || null, targets: [] };
+    const r = { id: 'demo' + sshRuns.length, t: Date.now(), by: 'admin', command, preset: body.preset || null, channel: body.channel || 'ssh', port: body.port || null, targets: [] };
     body.workers.forEach((n, i) => {
       const d = devs.find(x => x.name === n);
       const t = { name: n, ip: d ? d.ip : null, state: 'running', exit: null, ms: null, out: '', err: '', note: null };
@@ -1699,6 +2165,10 @@ const Demo = (() => {
       setTimeout(() => {
         t.ms = 300 + Math.floor(rnd() * 900);
         if (!d || d.status === 'offline') Object.assign(t, { state: 'error', exit: 255, err: 'ssh: connect to host ' + t.ip + ' port 8022: No route to host', note: 'Device not reachable on the network.' });
+        else if (body.channel === 'adbroot' && d.root !== 'yes') Object.assign(t, { state: 'failed', exit: 1, err: 'Permission denied', note: 'No root for ADB: in Magisk, allow root for "Shell" (com.android.shell), or the phone is not rooted.' });
+        else if (body.channel && d.adb !== 'device') Object.assign(t, { state: 'error', note: d.adb === 'unauthorized' ? 'Phone has not allowed this proxy: accept "Allow USB debugging" on the phone, or use "Install ADB key".' : 'Nothing listening on the ADB port (is TCP ADB enabled on the phone?)' });
+        else if (/getprop/.test(command)) Object.assign(t, { state: 'ok', exit: 0, out: d.model + '\n' });
+        else if (/adb_keys/.test(command)) Object.assign(t, { state: 'ok', exit: 0, out: 'ADB key installed, adbd restarted on port 5555\n' });
         else if (i % 9 === 4) Object.assign(t, { state: 'error', exit: 255, err: 'ssh: connect to host ' + t.ip + ' port 8022: Connection refused', note: 'Nothing listening on the SSH port: start sshd in Termux (run `sshd`).' });
         else Object.assign(t, { state: 'ok', exit: 0, out: fakeOut(command, d) });
       }, 400 + i * 120);
@@ -1722,7 +2192,45 @@ const Demo = (() => {
     return { ok: results.some(r => r.ok), results };
   }
   function forget(name) { const i = devs.findIndex(d => d.name === name && d.manual); if (i >= 0) devs.splice(i, 1); }
-  return { stats, history, pools, poolAction, groupAction, sshInfo, sshStart, sshGet, addDevices, forget };
+  function newPhone(name, ip, make, model, group) {
+    devs.push({ name, manual: true, group: group || null, ip, status: 'idle', make, model, soc: 'Snapdragon 720G', os: 'Android 13', kernel: '4.14.190', arch: 'aarch64', cores: 8, ramMB: 6000,
+      base: 0, temp: 0, bat: 31.5, lvl: 88, since: Date.now() - 3600e3, born: Date.now(), acc: 0, rej: 0, root: 'yes', rootKind: 'Magisk', adb: 'device', userland: false,
+      aid: Array.from({ length: 16 }, () => '0123456789abcdef'[Math.floor(rnd() * 16)]).join(''), invAgo: 1000, notes: '' });
+    if (group && !demoGroupNames.includes(group)) demoGroupNames.push(group);
+  }
+  function regAction(path, body) {
+    const d = devs.find(x => x.name === body.worker || (body.workers && body.workers[0] === x.name));
+    if (path === 'registry/refresh') { if (d && d.adb === 'device') { d.invAgo = 0; return { ok: true, results: [{ name: d.name, ok: true }] }; } return { ok: false, results: [{ name: body.workers[0], ok: false, error: d && d.adb === 'unauthorized' ? 'Phone has not allowed this proxy: accept "Allow USB debugging" on the phone, or use "Install ADB key".' : 'Nothing listening on the ADB port (is TCP ADB enabled on the phone?)' }] }; }
+    if (path === 'registry/reconnect') return d && d.adb ? { ok: d.adb === 'device', state: d.adb, error: d.adb === 'device' ? null : 'ADB: ' + d.adb } : { ok: false, error: 'Phone not reachable on the network.' };
+    if (path === 'registry/reboot') return d && d.adb === 'device' ? { ok: true } : { ok: false, error: 'ADB not connected' };
+    if (path === 'devices/notes') { if (d) d.notes = String(body.notes || '').slice(0, 500); return { ok: true }; }
+    if (path === 'registry/install-key') { const r = sshStart({ workers: body.workers, command: "K='QAAAAJ...demo pi@verusproxy'; su -c \"... >> /data/misc/adb/adb_keys ...\"", channel: null, port: 8022 }); setTimeout(() => { if (d) d.adb = 'device'; }, 1500); return r; }
+    if (path === 'registry/scan') {
+      const found = [
+        { ip: '192.168.1.140', state: 'device', make: 'Xiaomi', model: 'M2101K7BNY', marketName: 'Redmi Note 10S', knownAs: null, suggestedName: 'Redmi-Note-10S', moved: false },
+        { ip: '192.168.1.141', state: 'device', make: 'samsung', model: 'SM-G991B', marketName: 'Galaxy S21 5G', knownAs: null, suggestedName: 'Galaxy-S21-5G', moved: false },
+        { ip: '192.168.1.142', state: 'unauthorized', knownAs: null, suggestedName: 'phone-142', moved: false }
+      ];
+      for (const x of devs.filter(x => x.adb === 'device' || x.adb === 'unauthorized').slice(0, 6)) found.push({ ip: x.ip, state: x.adb, make: x.make, model: x.model, marketName: x.model, knownAs: x.name, suggestedName: x.name, moved: false });
+      found.sort((a, b) => Number(a.ip.split('.')[3]) - Number(b.ip.split('.')[3]));
+      found.forEach(f => { const k = devs.find(x => x.ip === f.ip); if (k) f.knownAs = k.name; });
+      demoReg.lastScan = { t: Date.now(), ranges: ['192.168.1.0/24'], scanned: 254, found };
+      return Object.assign({ ok: true }, demoReg.lastScan);
+    }
+    if (path === 'registry/add-found') {
+      const res = [];
+      for (const e of body.devices) { const f = demoReg.lastScan.found.find(x => x.ip === e.ip); newPhone(e.name, e.ip, f.make, f.marketName, body.group); f.knownAs = e.name; res.push({ ip: e.ip, name: e.name, ok: true }); }
+      return { ok: true, added: res.length, results: res };
+    }
+    if (path === 'registry/usb-enable') {
+      const u = demoReg.usb.find(x => x.serial === body.serial);
+      const name = body.name || 'phone-usb';
+      newPhone(name, '192.168.1.150', 'Samsung', 'Galaxy A52', body.group); u.registered = name;
+      return { ok: true, name, ip: '192.168.1.150' };
+    }
+    return { ok: false, error: 'unknown action' };
+  }
+  return { stats, history, pools, poolAction, groupAction, sshInfo, sshStart, sshGet, addDevices, forget, regAction };
 })();
 
 // ---------- boot ----------
