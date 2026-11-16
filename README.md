@@ -179,6 +179,13 @@ Options (environment variables): `WORKER=phone01` (otherwise taken from ccminer'
 | `ccminerApi`, `ccminerApiPort`, `ccminerPollSec` | `true`, `4068`, `30` | |
 | `ccminerHosts` | `[]` | extra ccminer APIs to poll |
 
+## One device per phone
+
+Devices are told apart by worker name **and** address:
+- **Two phones with the same worker name** (e.g. a copied ccminer config) are shown as two devices: the one that had the name keeps it, the other appears as `name@address`, both marked *name also used by …*. Give each phone its own worker name (the part after the dot in ccminer's user name).
+- **The miner running twice on one phone** (two connections from the same address, e.g. a test session next to the normal miner, or Termux and UserLAnd both mining) stays one device, marked *miner ×2*: the two share the CPU, so stop the extra one. Device details list each connection with its own shares.
+- **No device-reported hashrate** while a device is mining shows *no API*, with the reason on hover and in the device details: usually ccminer was started without `--api-bind 0.0.0.0:4068 --api-allow 0/0`, so its API only answers on the phone itself. The pool-side hashrate works regardless.
+
 # Device registry (ADB)
 
 The proxy can also keep a registry of your phones: what each one is, whether it's rooted, which ways in work, and buttons to act on it. It talks to the phones over **ADB on WiFi** (port 5555) using the proxy machine's own `adb` tool, and checks Termux SSH (8022) and UserLAnd SSH (2022) next to it.

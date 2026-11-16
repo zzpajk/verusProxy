@@ -707,7 +707,22 @@ function shareBasis(n, spanSec, fallbackSec) {
   return n.toLocaleString() + ' share' + (n === 1 ? '' : 's') + ' in ' + Math.max(1, Math.round(spanSec / 60)) + ' min · ±' + Math.round(100 / Math.sqrt(n)) + '%';
 }
 // a device mining on another pool still shows its speed, but it isn't part of the proxy's totals
+// why there is no device-reported hashrate (the proxy couldn't read ccminer's API)
+function apiWhy(e) {
+  if (!e) return null;
+  const at = e.host + ':' + e.port;
+  return e.reason === 'refused' ? 'ccminer\'s API can\'t be reached at ' + at + ' (nothing listening there). ccminer only answers on the phone itself unless it is started with --api-bind 0.0.0.0:' + e.port + ' --api-allow 0/0 (or "api-bind"/"api-allow" in its config file).'
+    : e.reason === 'closed' ? 'ccminer at ' + at + ' turned the proxy away: its --api-allow doesn\'t include the proxy\'s address. Use --api-allow 0/0, or your network, e.g. 192.168.1.0/24.'
+    : e.reason === 'timeout' || e.reason === 'unreachable' ? 'No answer from ccminer\'s API at ' + at + ' (phone asleep, Wi-Fi client isolation, or a firewall).'
+    : 'ccminer\'s API at ' + at + ': ' + e.reason;
+}
+const MINER_TWICE = (w) => 'ccminer is connected ' + w.minersTwice + ' times from ' + w.connList[0].ip + ': the miner is running more than once on this device (e.g. a test session next to the normal miner, or both Termux and UserLAnd mining). They share the CPU, so each gets only part of the speed. Stop the extra one.';
+const SAME_NAME = (w) => 'The worker name "' + (w.baseName || w.name) + '" is logged in from more than one address, so these are different devices: ' + [w.name].concat(w.sameName).join(', ') + '. Give each one its own worker name in its ccminer settings (the part after the dot in the user name).';
 function repCell(tr, w) {
+  if (w.repHashrate === null && w.apiErr && (w.status === 'online' || w.status === 'stale')) {
+    const td = cell(tr, 'no API', 'num'); td.style.color = css('--muted'); td.title = apiWhy(w.apiErr) + ' The pool-side hashrate still works.';
+    return td;
+  }
   const td = cell(tr, fmtH(w.repHashrate), 'num');
   if (w.viaProxy === false && w.repHashrate) {
     td.style.color = css('--muted');
@@ -805,9 +820,13 @@ function renderTable() {
           nb.addEventListener('click', () => openDrawer(w.name));
           td.appendChild(nb);
           if (w.dupOf && w.dupOf.length) { const s = document.createElement('span'); s.className = 'dupe'; s.textContent = 'same phone as ' + w.dupOf.join(', '); s.title = 'Same Android ID: probably one phone under two names. Remove the old one.'; td.appendChild(s); }
+          else if (w.sameName && w.sameName.length) { const s = document.createElement('span'); s.className = 'dupe'; s.textContent = 'name also used by ' + w.sameName.length + ' other'; s.title = SAME_NAME(w); td.appendChild(s); }
           const col = seriesColorFor(w.name);
           if (col) { const k = document.createElement('i'); k.className = 'key'; k.style.background = col; td.appendChild(k); }
-          if (w.connections > 1) { const s = document.createElement('span'); s.className = 'dim'; s.textContent = ' ×' + w.connections; td.appendChild(s); }
+          if (w.minersTwice) {
+            const s = document.createElement('span'); s.className = 'dupe'; s.textContent = 'miner ×' + w.minersTwice;
+            s.title = MINER_TWICE(w); td.appendChild(s);
+          }
           break;
         }
         case 'group': {
@@ -1835,8 +1854,14 @@ function renderDrawer() {
     ]));
   }
   const h5 = document.createElement('h3'); h5.textContent = 'Mining'; d.appendChild(h5);
+  if (w.minersTwice) { const x = document.createElement('div'); x.className = 'dr-warn'; x.textContent = MINER_TWICE(w); d.appendChild(x); }
+  if (w.sameName && w.sameName.length) { const x = document.createElement('div'); x.className = 'dr-warn'; x.textContent = SAME_NAME(w); d.appendChild(x); }
+  if (w.repHashrate === null && w.apiErr) { const x = document.createElement('div'); x.className = 'dr-warn'; x.textContent = 'No device-reported hashrate: ' + apiWhy(w.apiErr); d.appendChild(x); }
   d.appendChild(factList([
     ['Hashrate', w.repHashrate ? fmtH(w.repHashrate) + (w.viaProxy === false ? ' (not through this proxy)' : '') : null],
+    ['Pool-side', w.effHashrate ? fmtH(w.effHashrate) : null],
+    ['Logs in as', w.connList && w.connList.length ? w.connList[0].login : w.baseName],
+    ['Connections', w.connList && w.connList.length > 1 ? (() => { const box = document.createElement('div'); for (const c of w.connList) { const r = document.createElement('div'); r.textContent = c.ip + ' · since ' + fmtAgo(c.since, now).replace(' ago', '') + ' · ' + c.acc + ' accepted' + (c.rej ? ', ' + c.rej + ' rejected' : '') + (c.lastShare ? ' · last share ' + fmtAgo(c.lastShare, now) : ' · no shares yet'); box.appendChild(r); } return box; })() : null],
     ['Miner', w.software],
     ['Pool', w.minerPoolUrl, true],
     ['Process', inv.ccminerProcess || (w.inv ? 'ccminer not running' : null), true],
