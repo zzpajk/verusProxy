@@ -20,8 +20,19 @@ trap 'status failed stopped "Build stopped"; exit 1' INT TERM HUP
 istermux=0; case "${PREFIX:-}" in */com.termux/*) istermux=1;; esac
 SUDO=""; [ "$(id -u)" != 0 ] && command -v sudo >/dev/null 2>&1 && SUDO=sudo
 status running source "Getting the source"
-if ! command -v git >/dev/null 2>&1 || ! command -v bash >/dev/null 2>&1; then
-  if [ "$istermux" = 1 ]; then pkg install -y git bash >> "$LOG" 2>&1; else $SUDO apt-get install -y git bash >> "$LOG" 2>&1; fi
+# tools the build and the miner's start script need: git, curl, screen (and bash for build-verus.sh)
+need=""
+for t in git curl screen bash; do command -v "$t" >/dev/null 2>&1 || need="$need $t"; done
+if [ -n "$need" ]; then
+  status running source "Installing$need"
+  echo "installing:$need" >> "$LOG"
+  if [ "$istermux" = 1 ]; then
+    pkg install -y $need >> "$LOG" 2>&1 || { pkg update -y >> "$LOG" 2>&1; pkg install -y $need >> "$LOG" 2>&1; }
+  else
+    { $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y $need || { $SUDO apt-get update && $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y $need; }; } >> "$LOG" 2>&1
+  fi
+  miss=""; for t in $need; do command -v "$t" >/dev/null 2>&1 || miss="$miss $t"; done
+  [ -z "$miss" ] || { status failed source "Could not install$miss (see ~/.verusproxy/build.log)"; exit 1; }
 fi
 command -v git >/dev/null 2>&1 || { status failed source "git is not installed and could not be installed"; exit 1; }
 SRC="$VP/ccminer-src"

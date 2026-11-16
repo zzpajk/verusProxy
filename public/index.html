@@ -694,6 +694,14 @@ function accessBadges(w) {
   }
   return box;
 }
+// no CPU temperature: why
+function CPU_TEMP_WHY(w) {
+  const reg = state.stats && state.stats.registry;
+  if (w.cpuTempWhy) return 'Over ADB: ' + w.cpuTempWhy;
+  if (!reg || !reg.adb || !reg.adb.enabled) return 'ccminer can\'t read the CPU temperature on phones (it only looks at /sys/class/hwmon), and Android doesn\'t let Termux read the sensors. Turn on ADB ("adb": { "enabled": true }) and the proxy reads it over ADB every minute.';
+  if (!w.conn || w.conn.adb !== 'device') return 'Read over ADB, which isn\'t connected to this device' + (w.conn && w.conn.adbMsg ? ': ' + w.conn.adbMsg : '.');
+  return 'Not read yet (every minute over ADB).';
+}
 function cell(tr, text, cls) { const td = document.createElement('td'); if (cls) td.className = cls; if (text instanceof Node) td.appendChild(text); else td.textContent = text ?? '—'; tr.appendChild(td); return td; }
 function dot(color, label, cls) {
   const s = document.createElement('span'); s.className = cls;
@@ -866,7 +874,8 @@ function renderTable() {
         case 'ram': cell(tr, w.ramMB ? (w.ramMB / 1024).toFixed(1) + ' GB' : null, 'num'); break;
         case 'temp': {
           const lv = tempLevel(w.cpuTemp);
-          cell(tr, lv ? dot(lv[0], w.cpuTemp.toFixed(0) + ' °C', 'temp') : '—', 'num');
+          const td = cell(tr, lv ? dot(lv[0], w.cpuTemp.toFixed(0) + ' °C', 'temp') : '—', 'num');
+          td.title = w.cpuTemp !== null && w.cpuTemp !== undefined ? 'From ' + (w.cpuTempSrc || '?') : CPU_TEMP_WHY(w);
           break;
         }
         case 'battery': {
