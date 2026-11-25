@@ -4,20 +4,33 @@
 //
 //   node deploy/farm-check.js s8tx 192.168.1.21 ...     (device names or addresses)
 //   node deploy/farm-check.js --json s8tx               (raw result)
+//   node deploy/farm-check.js --plan s8tx               (also: the commands "Apply profile" would run; runs none)
+//   node deploy/farm-check.js --plan --set minerEnv=userland s8tx   (what if the device had this profile setting)
 
 const fs = require('fs');
 const path = require('path');
 const configLib = require('../lib/config.js');
 const { Adb } = require('../lib/adb.js');
 const { Groups } = require('../lib/groups.js');
-const { checkDevice } = require('../lib/farm.js');
+const { checkDevice, planFixes } = require('../lib/farm.js');
 
 let args = process.argv.slice(2);
-let json = args.includes('--json');
-args = args.filter(a => a !== '--json');
+let json = args.includes('--json'), plan = args.includes('--plan');
+let sets = {};
+for (let i = args.indexOf('--set'); i >= 0; i = args.indexOf('--set')) {
+    let [k, ...v] = String(args[i + 1] || '').split('='); v = v.join('=');
+    sets[k] = v === 'true' ? true : v === 'false' ? false : /^\d+$/.test(v) ? Number(v) : v;
+    args.splice(i, 2);
+}
+args = args.filter(a => a !== '--json' && a !== '--plan');
 if (!args.length) { console.log('usage: node deploy/farm-check.js [--json] <device name or ip> ...'); process.exit(1); }
 
 const config = configLib.load();
+// --set: a what-if override on top of every named device's profile (only in this run)
+if (Object.keys(sets).length) {
+    config.farm = Object.assign({}, config.farm, { devices: Object.assign({}, (config.farm || {}).devices) });
+    for (let a of args) config.farm.devices[a] = Object.assign({}, config.farm.devices[a], sets);
+}
 const dataDir = path.resolve(__dirname, '..', (config.dashboard || {}).dataDir || 'data');
 let workers = [];
 try { workers = JSON.parse(fs.readFileSync(path.join(dataDir, 'stats.json'), 'utf8')).workers || []; } catch (e) {}
@@ -39,6 +52,17 @@ const adb = new Adb(config);
         for (let i of r.items) {
             let mark = i.ok === true ? 'ok   ' : i.ok === false ? 'DRIFT' : '  ?  ';
             console.log(`  ${mark} ${i.label.padEnd(42)} ${i.have || '?'}${i.ok === false && i.want ? '   (want ' + i.want + ')' : ''}`);
+        }
+        if (plan && !r.error) {
+            let f = config.farm || {};
+            let proxyUrl = f.proxyUrl || ('http://' + (Object.values(require('os').networkInterfaces()).flat().find(a => a && (a.family === 'IPv4' || a.family === 4) && !a.internal) || {}).address + ':' + ((config.dashboard || {}).port || 8080));
+            let p = planFixes(r, prof.profile, prof.stamp, { minerPath: (config.miner || {}).path, proxyUrl });
+            console.log(`\n  Apply profile (dry run, nothing was run): ${p.steps.length} step(s)`);
+            for (let s of p.steps) {
+                let cmd = s.cmd.replace(/echo [A-Za-z0-9+\/=]{200,} \|/, m => 'echo <' + (m.length - 7) + ' chars of base64> |');
+                console.log(`   [${s.via}] ${s.what}\n      $ ${s.via === 'ssh-su' ? 'su -c ' + JSON.stringify(cmd) : cmd}`);
+            }
+            for (let m of p.manual) console.log(`   [manual] ${m.what}`);
         }
     }
 })();

@@ -1905,7 +1905,29 @@ function renderDrawer() {
       const fa = document.createElement('div'); fa.className = 'dr-actions';
       const b = document.createElement('button'); b.className = 'btn small'; b.textContent = 'Check setup'; b.title = 'Compare this phone with its farm profile now (read-only)';
       b.addEventListener('click', () => run('Checking setup', 'farm/check', { workers: [w.name] }, r => { const x = r.results && r.results[0] && r.results[0].farm; return x ? 'Setup: ' + x.status + '.' : 'Checked.'; }));
-      fa.appendChild(b); d.appendChild(fa);
+      fa.appendChild(b);
+      if (f && f.status !== 'in sync' && f.status !== 'error') {
+        const ap = document.createElement('button'); ap.className = 'btn small'; ap.textContent = 'Apply profile…';
+        ap.title = 'Fix only the drifted items: shows the commands first, runs nothing until you confirm';
+        ap.addEventListener('click', async () => {
+          state.drawerMsg = { text: 'Working out the fixes…' }; renderDrawer();
+          const plan = await regAction('farm/apply', { worker: w.name, dryRun: true });
+          if (!plan.ok) { state.drawerMsg = { text: plan.error || 'failed', bad: true }; return renderDrawer(); }
+          const short = (c) => c.replace(/echo [A-Za-z0-9+\/=]{200,} \|/, m => 'echo <' + (m.length - 7) + ' chars of base64> |');
+          const lines = plan.steps.map(s => '• ' + s.what + ' [' + s.via + ']\n    ' + short(s.cmd).slice(0, 300));
+          const man = plan.manual.map(m => '• ' + m.what);
+          if (!plan.steps.length) { state.drawerMsg = { text: 'Nothing to fix automatically.' + (man.length ? ' By hand: ' + plan.manual.map(m => m.what).join(' · ') : ''), bad: !!man.length }; return renderDrawer(); }
+          state.drawerMsg = null; renderDrawer();
+          if (!confirm('Apply profile ' + plan.stamp + ' to ' + w.name + '? These run on the phone:\n\n' + lines.join('\n') + (man.length ? '\n\nNot done automatically:\n' + man.join('\n') : ''))) return;
+          state.drawerMsg = { text: 'Applying…' }; renderDrawer();
+          const r = await regAction('farm/apply', { worker: w.name, dryRun: false });
+          const failed = (r.steps || []).filter(s => s.ok === false);
+          state.drawerMsg = r.ok ? { text: 'Applied. Setup now: ' + (r.after ? r.after.status : '?') + '.' } : { text: r.error || ('Failed: ' + failed.map(s => s.what + ' (' + ((s.result && (s.result.err || s.result.out)) || 'error') + ')').join('; ')), bad: true };
+          await loadStats(true); renderDrawer();
+        });
+        fa.appendChild(ap);
+      }
+      d.appendChild(fa);
     }
   }
   const h5 = document.createElement('h3'); h5.textContent = 'Mining'; d.appendChild(h5);

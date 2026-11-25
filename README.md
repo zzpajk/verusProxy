@@ -254,7 +254,17 @@ Settings: `farm.defaults`, then `farm.groups["<dashboard group>"]`, then `farm.d
 | `batterySpoof` | `dumpsys battery` is spoofed (updates stopped) or real |
 | `adbWifiPort` | `service.adb.tcp.port` equals this |
 | `minerBuild` | commit, checksum prefix or code path of the miner (from *Miner updates*); empty = not checked |
+| `minerEnv` | where ccminer runs: `termux`, `userland` or `none` (the boot script only starts a Termux miner) |
+| `minerArgs` | ccminer arguments the boot script starts it with (not checked) |
+| `agent` | boot script starts `~/verus-agent.sh` when it is there (not checked) |
+| `retireBootScripts` | old boot scripts the managed one replaces; moved to `~/.verusproxy/retired-boot`, never deleted |
 | (always) | ccminer runs exactly once |
+
+`farm.proxyUrl` (default: this machine's LAN address and dashboard port) is what the boot script gives the agent.
+
+**The managed boot script** `~/.termux/boot/verusproxy-setup` is generated from the profile: wake lock, one instance only (`~/.verusproxy/boot.lock`), Termux services and sshd, then as root: ADB on, ADB over WiFi on `adbWifiPort` (restarts adbd), battery spoof, cpuset. With `minerEnv: "termux"` it keeps ccminer running in screen `ccminer` (never a second one, also not next to a UserLAnd miner), restarting it after 10 s / 30 s / 120 s when it keeps dying; it re-applies the cpuset when Android resets it and starts the agent. With `minerEnv: "userland"` it runs `~/kluster/update-UserLAnd.sh` once at boot, as `start-kluster.sh` did. Log: `~/.verusproxy/boot.log`. It replaces `start-kluster.sh` (ADB, battery spoof, UserLAnd start) and `start-sshd`; other boot scripts (e.g. `verus-runner.sh`) and the kluster cron jobs are left alone.
+
+**Apply profile** (device details, or `POST /api/farm/apply {"worker": "...", "dryRun": true|false}`) re-checks the phone and fixes only the drifted items: the boot script and file moves over SSH as the Termux user, root items over the ADB root shell (or Termux's `su` over SSH when ADB has no root), the ADB port last. Installing apps, a wrong miner environment, a miner running twice and miner builds are listed for you instead. `dryRun` (the default) only lists the commands; the dashboard shows them and asks before running. The boot script is not written while the miner runs somewhere else than `minerEnv` says. Command line, runs nothing: `node deploy/farm-check.js --plan [--set minerEnv=userland] <device>`.
 
 Dry run without the proxy (read-only, saves nothing): `node deploy/farm-check.js s8tx 192.168.1.21` (`--json` for the raw result). Check one device now from the dashboard: *Check setup* in its details, or `POST /api/farm/check {"workers": [...]}`.
 
