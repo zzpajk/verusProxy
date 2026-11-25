@@ -4,9 +4,12 @@ mkdir -p "$VP"
 log() { echo "$(date '+%F %T') $*" >> "$LOG"; }
 
 # Termux:Boot waits for its scripts: carry on detached
-if [ "${1:-}" != run ]; then
-  if command -v setsid >/dev/null 2>&1; then setsid nohup sh "$0" run >/dev/null 2>&1 < /dev/null &
-  else nohup sh "$0" run >/dev/null 2>&1 < /dev/null & fi
+# ("loop": only the watchdog, used when "Apply profile" replaces a running copy)
+MODE=${1:-}
+if [ "$MODE" != run ] && [ "$MODE" != loop-run ]; then
+  [ "$MODE" = loop ] && next=loop-run || next=run
+  if command -v setsid >/dev/null 2>&1; then setsid nohup sh "$0" $next >/dev/null 2>&1 < /dev/null &
+  else nohup sh "$0" $next >/dev/null 2>&1 < /dev/null & fi
   exit 0
 fi
 
@@ -21,7 +24,9 @@ fi
 echo $$ > "$LOCK/pid"
 trap 'rm -rf "$LOCK"' EXIT
 trap 'exit 0' INT TERM
-log "start: profile $STAMP, miner $MINER_ENV"
+log "start ($MODE): profile $STAMP, miner $MINER_ENV"
+asroot() { if su -c "$1" >/dev/null 2>&1; then log "root: $1"; else log "root FAILED: $1"; fi; }
+if [ "$MODE" = run ]; then
 
 command -v termux-wake-lock >/dev/null 2>&1 && termux-wake-lock && log "wake lock taken"
 # Termux's profile starts termux-services (sshd, crond) where they are set up
@@ -31,7 +36,6 @@ if pgrep -x sshd >/dev/null 2>&1; then log "sshd already running"
 elif command -v sshd >/dev/null 2>&1; then sshd && log "sshd started" || log "sshd FAILED"
 else log "sshd not installed (pkg install openssh)"; fi
 
-asroot() { if su -c "$1" >/dev/null 2>&1; then log "root: $1"; else log "root FAILED: $1"; fi; }
 asroot "settings put global adb_enabled 1"
 [ -n "$ADB_PORT" ] && asroot "setprop service.adb.tcp.port $ADB_PORT; stop adbd; start adbd"
 case "$BATTERY_SPOOF" in
@@ -51,11 +55,14 @@ if [ "$AGENT" = 1 ] && [ -f "$HOME/verus-agent.sh" ] && [ -n "$PROXY_URL" ]; the
   else nohup bash "$HOME/verus-agent.sh" "$PROXY_URL" >/dev/null 2>&1 < /dev/null & log "agent started ($PROXY_URL)"; fi
 fi
 
-NAME=$(basename "$MINER_BIN" | cut -c1-15)
-miner_running() { pgrep -x "$NAME" >/dev/null 2>&1; }
+fi   # end of boot-only steps
+
+# Termux's pgrep names processes by their full path: match the command line instead
+miner_running() { pgrep -f "^$MINER_BIN( |\$)" >/dev/null 2>&1; }
+ME=$(id -un)
 start_miner() {
   # Termux can't see other apps' processes: ask root whether a miner already runs elsewhere (UserLAnd)
-  other=$(su -c "ps -A -o NAME" 2>/dev/null | grep -c '^ccminer')
+  other=$(su -c "ps -A -o USER,NAME" 2>/dev/null | awk -v me="$ME" '$1 != me && $2 ~ /^ccminer/' | grep -c .)
   if [ "${other:-0}" -gt 0 ]; then log "a miner already runs outside Termux ($other), not starting a second one"; return 0; fi
   screen -wipe >/dev/null 2>&1
   screen -dmS ccminer sh -c "exec $MINER_BIN $MINER_ARGS" && log "ccminer started in screen ccminer" || log "ccminer start FAILED"
