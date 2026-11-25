@@ -22,7 +22,8 @@ if ! mkdir "$LOCK" 2>/dev/null; then
   rm -rf "$LOCK"; mkdir "$LOCK" || { log "cannot take $LOCK"; exit 1; }
 fi
 echo $$ > "$LOCK/pid"
-trap 'rm -rf "$LOCK"' EXIT
+# remove the lock only while it is still ours (a replacement may hold it already)
+trap '[ "$(cat "$LOCK/pid" 2>/dev/null)" = "$$" ] && rm -rf "$LOCK"' EXIT
 trap 'exit 0' INT TERM
 log "start ($MODE): profile $STAMP, miner $MINER_ENV"
 asroot() { if su -c "$1" >/dev/null 2>&1; then log "root: $1"; else log "root FAILED: $1"; fi; }
@@ -81,7 +82,7 @@ while :; do
       if [ $started -gt 0 ] && [ $(( $(date +%s) - started )) -lt 300 ]; then fails=$((fails + 1)); else fails=0; fi
       if [ $fails -gt 0 ]; then
         d=10; [ $fails -ge 2 ] && d=30; [ $fails -ge 3 ] && d=120
-        log "ccminer not running (quick exit #$fails), waiting $d s"; sleep $d
+        log "ccminer not running (quick exit #$fails), waiting $d s"; sleep $d & wait $!
       else log "ccminer not running"; fi
       miner_running || { start_miner; started=$(date +%s); }
     fi
@@ -91,5 +92,5 @@ while :; do
     cur=$(cat /dev/cpuset/foreground/cpus 2>/dev/null)
     [ -n "$cur" ] && [ "$cur" != "$CPUSET" ] && { log "cpuset was $cur"; asroot "echo $CPUSET > /dev/cpuset/foreground/cpus"; }
   fi
-  sleep 60
+  sleep 60 & wait $!
 done
