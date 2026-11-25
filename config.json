@@ -64,6 +64,24 @@
         "scan": []
     },
 
+    "farm": {
+        "checkEveryMin": 60,
+        "defaults": {
+            "termuxVersion": "",
+            "termuxApk": "github",
+            "bootApk": "github",
+            "bootScript": "verusproxy-setup",
+            "batteryOptimisationOff": true,
+            "magiskAutoGrant": true,
+            "cpuset": "0-7",
+            "batterySpoof": true,
+            "adbWifiPort": 5555,
+            "minerBuild": ""
+        },
+        "groups": {},
+        "devices": {}
+    },
+
     "dashboard": {
         "enabled": true,
         "host": "0.0.0.0",
