@@ -76,8 +76,13 @@
             "cpuset": "0-7",
             "batterySpoof": true,
             "adbWifiPort": 5555,
-            "minerBuild": ""
+            "minerBuild": "",
+            "minerEnv": "termux",
+            "minerArgs": "-c ~/ccminer/verus.conf -b --api-remote",
+            "agent": true,
+            "retireBootScripts": ["start-kluster.sh", "start-sshd"]
         },
+        "proxyUrl": "",
         "groups": {},
         "devices": {}
     },
