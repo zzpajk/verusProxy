@@ -470,7 +470,7 @@ const state = {
 // columns added in a later version start hidden if they are hidden by default
 (() => {
   const seen = store.get('colsSeen', null);
-  const all = ['plot','status','name','group','make','model','soc','os','root','access','kernel','arch','cores','freq','ram','storage','temp','battery','load','hash','other','perCore','threads','shares','rej','minerShares','software','minerver','termux','userland','ping','ip','address','uptime','lastShare','info','notes','firstSeen','action'];
+  const all = ['plot','status','name','group','make','model','soc','os','root','access','setup','kernel','arch','cores','freq','ram','storage','temp','battery','load','hash','other','perCore','threads','shares','rej','minerShares','software','minerver','termux','userland','ping','ip','address','uptime','lastShare','info','notes','firstSeen','action'];
   if (seen) {
     const fresh = all.filter(k => !seen.includes(k) && DEFAULT_HIDDEN.includes(k) && !state.hiddenCols.includes(k));
     if (fresh.length) { state.hiddenCols = state.hiddenCols.concat(fresh); store.set('hiddenCols', state.hiddenCols); }
@@ -491,6 +491,7 @@ const COLS = [
   { key: 'os', label: 'System', val: w => (w.os || '').toLowerCase() },
   { key: 'root', label: 'Root', val: w => ({ yes: 0, su: 1, no: 2 })[w.root] },
   { key: 'access', label: 'Access', val: w => accessParts(w).filter(p => p[1] === 'ok').length * -1 || null },
+  { key: 'setup', label: 'Setup', val: w => w.farm ? ({ 'in sync': 0, drifted: 1, 'not set up': 2, error: 3 })[w.farm.status] : null },
   { key: 'kernel', label: 'Kernel', val: w => w.kernel || '' },
   { key: 'arch', label: 'Arch', val: w => w.arch || '' },
   { key: 'cores', label: 'Cores', num: true, val: w => w.cores },
@@ -667,6 +668,25 @@ const ROOT = {
   su: ['--warning', 'Rooted', 'Has su, but the ADB shell is not allowed root: in Magisk/KernelSU, grant root to "Shell" (com.android.shell)'],
   no: ['--muted', 'No', 'No su found: not rooted']
 };
+// farm setup check (read-only, over ADB): [color, label]
+const FARM = {
+  'in sync': ['--good', 'In sync'],
+  drifted: ['--warning', 'Drifted'],
+  'not set up': ['--muted', 'Not set up'],
+  error: ['--critical', 'Not checked']
+};
+function farmTitle(w) {
+  const f = w.farm; if (!f) return 'Not checked yet (hourly over ADB, read-only).';
+  if (f.status === 'error') return 'Check failed: ' + (f.error || 'no answer');
+  const bad = (f.items || []).filter(i => i.ok === false);
+  return 'Profile ' + f.stamp + (bad.length ? '\nDrifted: ' + bad.map(i => i.label + ' (' + (i.have || '?') + ')').join('; ') : '') + ((f.unknown || []).length ? '\nCould not tell: ' + f.unknown.join(', ') : '');
+}
+function farmBadge(w) {
+  const f = w.farm; if (!f) return null;
+  const F = FARM[f.status] || FARM.error;
+  const n = (f.items || []).filter(i => i.ok === false).length;
+  return dot(F[0], F[1] + (f.status === 'drifted' || (f.status === 'not set up' && n) ? ' · ' + n : ''), 'status');
+}
 // which ways in answer: ADB, then each SSH port (Termux 8022, UserLAnd 2022, ...)
 function accessParts(w) {
   const reg = state.stats && state.stats.registry, c = w.conn, out = [];
@@ -855,6 +875,7 @@ function renderTable() {
           break;
         }
         case 'access': cell(tr, accessBadges(w)); break;
+        case 'setup': { const td = cell(tr, farmBadge(w)); td.title = farmTitle(w); break; }
         case 'storage': cell(tr, w.dataFreeMB ? (w.dataFreeMB / 1024).toFixed(1) + ' GB' : null, 'num'); break;
         case 'minerver': { const b = minerBadge(w); const td = cell(tr, b ? b.el : null); if (b) td.title = b.title; break; }
         case 'termux': cell(tr, w.termux); break;
@@ -1861,6 +1882,31 @@ function renderDrawer() {
       ['Termux:API', inv.termuxApi],
       ['UserLAnd', inv.userland]
     ]));
+  }
+  if (w.farm || adbOn) {
+    const f = w.farm;
+    const hf = document.createElement('h3'); hf.textContent = 'Farm setup' + (f ? ' · checked ' + fmtAgo(f.ts, now) : ''); d.appendChild(hf);
+    if (!f) { const x = document.createElement('div'); x.className = 'dr-msg'; x.textContent = 'Not checked yet: the proxy reads it over ADB every hour (read-only, it changes nothing).'; d.appendChild(x); }
+    else if (f.status === 'error') { const x = document.createElement('div'); x.className = 'dr-msg bad'; x.textContent = 'Check failed: ' + (f.error || 'no answer'); d.appendChild(x); }
+    else {
+      const F = FARM[f.status] || FARM.error;
+      const src = ['defaults', f.profileFrom && f.profileFrom.group ? 'group ' + (w.group || '') : null, f.profileFrom && f.profileFrom.device ? 'device' : null].filter(Boolean).join(' + ');
+      const rows = [['State', dot(F[0], F[1], 'status')], ['Profile', f.stamp + ' (' + src + ')']];
+      for (const i of f.items || []) {
+        const col = i.ok === true ? '--good' : i.ok === false ? '--warning' : '--muted';
+        const el = dot(col, (i.have || '?') + (i.ok === false && i.want ? ' · want ' + i.want : ''), 'status');
+        if (i.ok === null) el.title = 'Could not tell';
+        rows.push([i.label, el]);
+      }
+      d.appendChild(factList(rows));
+      if (!f.root) { const x = document.createElement('div'); x.className = 'dr-msg'; x.textContent = 'Checked without root (the ADB shell has no root here), so some items could not be read.'; d.appendChild(x); }
+    }
+    if (adbOn) {
+      const fa = document.createElement('div'); fa.className = 'dr-actions';
+      const b = document.createElement('button'); b.className = 'btn small'; b.textContent = 'Check setup'; b.title = 'Compare this phone with its farm profile now (read-only)';
+      b.addEventListener('click', () => run('Checking setup', 'farm/check', { workers: [w.name] }, r => { const x = r.results && r.results[0] && r.results[0].farm; return x ? 'Setup: ' + x.status + '.' : 'Checked.'; }));
+      fa.appendChild(b); d.appendChild(fa);
+    }
   }
   const h5 = document.createElement('h3'); h5.textContent = 'Mining'; d.appendChild(h5);
   if (w.minersTwice) { const x = document.createElement('div'); x.className = 'dr-warn'; x.textContent = MINER_TWICE(w); d.appendChild(x); }

@@ -230,6 +230,34 @@ The proxy can also keep a registry of your phones: what each one is, whether it'
 
 Device facts are stored with the rest of the stats in `data/stats.json`. ADB gives full control of a phone, so like remote commands it only works with a dashboard login, and actions only from the dashboard page itself; the proxy only connects to devices it already knows or found in a scan of your LAN, never to an address typed into the page.
 
+# Farm setup profile
+
+One profile says how every phone should be set up; the proxy checks each phone against it every hour over ADB and shows the result in the **Setup** column (In sync / Drifted / Not set up) and under *Farm setup* in the device details. The check only reads (packages, `~/.termux/boot`, `dumpsys`, properties, Magisk's root list); it changes nothing on the phones. Needs `adb.enabled` and `dashboard.auth`; it runs as root when the ADB shell has root, otherwise some items show "?".
+
+Settings: `farm.defaults`, then `farm.groups["<dashboard group>"]`, then `farm.devices["<device name>"]`, later ones win key by key. Each merged profile has a short stamp (printed at startup and shown per device); the managed boot script carries it as `# verusproxy-profile: <stamp>`.
+
+```json
+"farm": {
+    "groups": { "slow S8s": { "cpuset": "0-3" } },
+    "devices": { "s20tx": { "batterySpoof": false, "minerBuild": "a1b2c3d" } }
+}
+```
+
+| key | checked as |
+|---|---|
+| `termuxVersion` | Termux version equals this (empty = any version) |
+| `termuxApk`, `bootApk` | where setup installs Termux / Termux:Boot from (not checked) |
+| `bootScript` | `~/.termux/boot/<name>` exists and carries the profile stamp; missing = "Not set up" |
+| `batteryOptimisationOff` | `com.termux` is on the `deviceidle` whitelist |
+| `magiskAutoGrant` | Magisk allows root forever to Termux and to Shell (ADB) |
+| `cpuset` | `/dev/cpuset/foreground/cpus` equals this |
+| `batterySpoof` | `dumpsys battery` is spoofed (updates stopped) or real |
+| `adbWifiPort` | `service.adb.tcp.port` equals this |
+| `minerBuild` | commit, checksum prefix or code path of the miner (from *Miner updates*); empty = not checked |
+| (always) | ccminer runs exactly once |
+
+Dry run without the proxy (read-only, saves nothing): `node deploy/farm-check.js s8tx 192.168.1.21` (`--json` for the raw result). Check one device now from the dashboard: *Check setup* in its details, or `POST /api/farm/check {"workers": [...]}`.
+
 # Miner updates
 
 The **Miner versions** card (below Remote commands) shows which ccminer every phone has and puts a new one on many phones at once. It works over SSH (Termux, port 8022; or another port from `ssh.ports`, e.g. UserLAnd 2022), so it needs the same setup as Remote commands: `ssh.enabled` and `dashboard.auth`.
