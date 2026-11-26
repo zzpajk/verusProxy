@@ -183,7 +183,8 @@ led_up() { [ "$STATUS_LED" = 1 ] || return 0; su -c "nohup sh $0 led-run >/dev/n
 # benchmark job runner (verus-phone-jobs): started with the watchdog; while one of its jobs runs a
 # miner of its own (scripts and work directories under ~/verus-runs) the normal miner is stopped
 runner_up() {
-  [ "$RUNNER" = 1 ] && [ -f "$TH/.verus-runner.conf" ] && [ -f "$TH/phone-runner.sh" ] || return 0
+  # (not before its jobs repo is cloned: without it the runner only fails and leaves an empty folder)
+  [ "$RUNNER" = 1 ] && [ -f "$TH/.verus-runner.conf" ] && [ -f "$TH/phone-runner.sh" ] && [ -d "$TH/verus-phone-jobs/.git" ] || return 0
   bash "$TH/phone-runner.sh" status 2>/dev/null | grep -q '^running' && return 0
   bash "$TH/phone-runner.sh" start >/dev/null 2>&1 && log "benchmark runner started"
 }
