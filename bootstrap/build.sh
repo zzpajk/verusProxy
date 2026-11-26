@@ -5,7 +5,8 @@
 #
 # Defaults (all gitignored, the zip holds the WiFi password: keep it off GitHub):
 #   --conf  bootstrap/local/farm.conf          copy of bootstrap/module/farm.conf.example, filled in
-#   keys    farm.defaults.adbKeys / sshKeys from config.local.json (the list phones sync from)
+#   keys    farm.defaults.adbKeys / sshKeys from config.local.json and data/keys/*.txt
+#           (the list phones sync from)
 #   --key   bootstrap/local/adb_keys            extra keys, one adbkey.pub line each (e.g. the laptop's)
 #           plus ~/.android/adbkey.pub of the user running this (on the box: run as verusproxy,
 #           the user the dashboard's adb runs as, or pass ~verusproxy/.android/adbkey.pub)
@@ -72,9 +73,13 @@ PY
 
 # ADB keys, without duplicates
 farmkeys adbKeys > "$STAGE/adb_keys"
-[ -s "$STAGE/adb_keys" ] && echo "adb keys from config.local.json farm.defaults.adbKeys: $(wc -l < "$STAGE/adb_keys")"
+# the files the box serves for the key sync (data/keys), when present
+[ -f "$ROOT/data/keys/adb_keys.txt" ] && grep -v '^[[:space:]]*\(#\|$\)' "$ROOT/data/keys/adb_keys.txt" >> "$STAGE/adb_keys" || true
+[ -s "$STAGE/adb_keys" ] && echo "adb keys from the farm key list: $(wc -l < "$STAGE/adb_keys")"
 farmkeys sshKeys > "$STAGE/ssh_keys"
-if [ -s "$STAGE/ssh_keys" ]; then echo "ssh keys from farm.defaults.sshKeys: $(wc -l < "$STAGE/ssh_keys")"; else rm -f "$STAGE/ssh_keys"; fi
+[ -f "$ROOT/data/keys/authorized_keys.txt" ] && grep -v '^[[:space:]]*\(#\|$\)' "$ROOT/data/keys/authorized_keys.txt" >> "$STAGE/ssh_keys" || true
+sort -u -o "$STAGE/ssh_keys" "$STAGE/ssh_keys"
+if [ -s "$STAGE/ssh_keys" ]; then echo "ssh keys from the farm key list: $(wc -l < "$STAGE/ssh_keys")"; else rm -f "$STAGE/ssh_keys"; fi
 for k in "${KEYS[@]}"; do
   [ -f "$k" ] || { echo "no key file $k" >&2; exit 1; }
   grep -v '^[[:space:]]*\(#\|$\)' "$k" >> "$STAGE/adb_keys" || true
