@@ -1,0 +1,37 @@
+#!/sbin/sh
+# Magisk's standard module installer (scripts/module_installer.sh). Works from the Magisk app,
+# `magisk --install-module` and a recovery that can read /data (TWRP after Android booted once).
+
+#################
+# Initialization
+#################
+
+umask 022
+
+# echo before loading util_functions
+ui_print() { echo "$1"; }
+
+require_new_magisk() {
+  ui_print "*******************************************************"
+  ui_print " Magisk is not set up on /data yet (or /data is locked)."
+  ui_print " Boot Android once after flashing Magisk v20.4+, then"
+  ui_print " flash this zip again (or install it from the Magisk app)."
+  ui_print "*******************************************************"
+  exit 1
+}
+
+#########################
+# Load util_functions.sh
+#########################
+
+OUTFD=$2
+ZIPFILE=$3
+
+mount /data 2>/dev/null
+
+[ -f /data/adb/magisk/util_functions.sh ] || require_new_magisk
+. /data/adb/magisk/util_functions.sh
+[ $MAGISK_VER_CODE -lt 20400 ] && require_new_magisk
+
+install_module
+exit 0

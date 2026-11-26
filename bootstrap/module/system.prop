@@ -1,0 +1,4 @@
+# loaded by Magisk at every boot (in memory, nothing written to /system)
+persist.sys.usb.config=mtp,adb
+service.adb.tcp.port=5555
+ro.setupwizard.mode=DISABLED

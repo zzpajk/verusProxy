@@ -1,0 +1,10 @@
+#!/data/data/com.termux/files/usr/bin/sh
+# Written by the farm-bootstrap Magisk module: keeps a new phone awake with SSH up until the
+# dashboard's "Apply profile" writes ~/.termux/boot/verusproxy-setup, then removes itself.
+if [ -f "$HOME/.termux/boot/verusproxy-setup" ]; then
+  rm -f "$HOME/.termux/boot/farm-bootstrap"
+  exit 0
+fi
+command -v termux-wake-lock >/dev/null 2>&1 && termux-wake-lock
+command -v sshd >/dev/null 2>&1 && { pgrep -x sshd >/dev/null 2>&1 || sshd; }
+exit 0
