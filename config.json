@@ -83,7 +83,9 @@
             "retireBootScripts": ["start-kluster.sh", "start-sshd"],
             "cronWatchdog": true,
             "klusterOff": true,
-            "userlandOff": true
+            "userlandOff": true,
+            "keepForeground": true,
+            "screenTimeoutMin": 60
         },
         "proxyUrl": "",
         "groups": {},

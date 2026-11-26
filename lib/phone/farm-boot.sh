@@ -45,6 +45,7 @@ case "$BATTERY_SPOOF" in
   0) asroot "dumpsys battery reset" ;;
 esac
 [ -n "$CPUSET" ] && asroot "echo $CPUSET > /dev/cpuset/foreground/cpus"
+[ "$KEEP_FRONT" = 1 ] && asroot "settings put system screen_off_timeout $SCREEN_TIMEOUT_MS"
 
 # UserLAnd miners: what start-kluster.sh did at boot (the kluster cron job keeps it up afterwards)
 if [ "$MINER_ENV" = userland ] && [ -f "$HOME/kluster/update-UserLAnd.sh" ]; then
@@ -70,8 +71,22 @@ start_miner() {
   screen -dmS ccminer sh -c "exec $MINER_BIN $MINER_ARGS" && log "ccminer started in screen ccminer" || log "ccminer start FAILED"
 }
 
-fails=0; started=0; missing=0
+# from keep-alive.sh: screen on and unlocked, Termux in front, so Android runs it on all cores at full speed
+FRONT='S=$(dumpsys nfc 2>/dev/null | sed -n "s/.*mScreenState=//p" | head -n 1)
+case "$S" in OFF_*) input keyevent 26; sleep 1; S=$(dumpsys nfc 2>/dev/null | sed -n "s/.*mScreenState=//p" | head -n 1); echo woke;; esac
+[ "$S" = ON_LOCKED ] && { input keyevent 82; sleep 1; echo unlocked; }
+F=$(dumpsys window 2>/dev/null | grep -m 1 mCurrentFocus)
+case "$F" in *com.termux/*) ;; *) am start -n com.termux/com.termux.HomeActivity >/dev/null 2>&1; echo "brought Termux to the front";; esac'
+keep_front() {
+  [ "$KEEP_FRONT" = 1 ] || return 0
+  out=$(su -c "$FRONT" 2>/dev/null)
+  [ -n "$out" ] && log "keep in front: $(echo $out)"
+}
+
+fails=0; started=0; missing=0; n=0
 while :; do
+  [ $((n % 3)) = 0 ] && keep_front
+  n=$((n + 1))
   if [ "$MINER_ENV" = termux ]; then
     if miner_running; then
       missing=0
