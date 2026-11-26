@@ -100,8 +100,10 @@
             "findTorch": true,
             "findVibrate": true,
             "findSound": false,
-            "termuxSource": "fdroid",
-            "workerName": "{model}-{serial}"
+            "termuxSource": "github",
+            "workerName": "{model}-{serial}",
+            "runner": true,
+            "runnerRepo": "git@github.com:zzpajk/verus-phone-jobs.git"
         },
         "proxyUrl": "",
         "groups": {},

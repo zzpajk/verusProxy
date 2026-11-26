@@ -58,6 +58,7 @@ led_main() {
     now=$(date +%s); khs=""
     if [ "$FINDME_UNTIL" -gt "$now" ]; then state=find
     elif [ "$LED" != 1 ]; then state=off
+    elif [ -f "$VP/miner.paused" ]; then state=bench
     else
       sm=$(echo summary | nc -w 3 127.0.0.1 4068 2>/dev/null | tr ';' '\n')
       khs=$(echo "$sm" | sed -n 's/^KHS=\([0-9]*\).*/\1/p'); up=$(echo "$sm" | sed -n 's/^UPTIME=\([0-9]*\).*/\1/p')
@@ -76,6 +77,7 @@ led_main() {
       ok) led "$COLOR_OK" 1000 0 ;;
       slow) led "$COLOR_OK" 1000 1500 ;;
       bad) led "$COLOR_BAD" 1000 0 ;;
+      bench) led 00FFFF 1000 1000 ;;      # cyan blink: a benchmark job has the CPU
       find) if [ "$COLOR_FIND" = CYCLE ]; then set -- FF0000 00FF00 0000FF FFFFFF FF00FF 00FFFF; shift $((n % 6)); led "$1" 300 300; else led "$COLOR_FIND" 300 300; fi ;;
       off) [ "$last" != off ] && led 000000 0 0 ;;
     esac
@@ -178,10 +180,27 @@ keep_front() {
 # the status LED loop runs as root; its own lock keeps it to one copy
 led_up() { [ "$STATUS_LED" = 1 ] || return 0; su -c "nohup sh $0 led-run >/dev/null 2>&1 < /dev/null &" >/dev/null 2>&1; }
 
+# benchmark job runner (verus-phone-jobs): started with the watchdog; while one of its jobs runs a
+# miner of its own (scripts and work directories under ~/verus-runs) the normal miner is stopped
+runner_up() {
+  [ "$RUNNER" = 1 ] && [ -f "$TH/.verus-runner.conf" ] && [ -f "$TH/phone-runner.sh" ] || return 0
+  bash "$TH/phone-runner.sh" status 2>/dev/null | grep -q '^running' && return 0
+  bash "$TH/phone-runner.sh" start >/dev/null 2>&1 && log "benchmark runner started"
+}
+job_running() { pgrep -f "$TH/verus-runs/(scripts|work-)" >/dev/null 2>&1; }
+paused=0
+
 fails=0; started=0; missing=0; n=0
 while :; do
   [ $((n % 3)) = 0 ] && keep_front
   [ $((n % 5)) = 0 ] && led_up
+  [ $((n % 5)) = 0 ] && runner_up
+  if [ "$MINER_ENV" = termux ] && job_running; then
+    if [ $paused = 0 ]; then paused=1; : > "$VP/miner.paused"; log "benchmark job running: miner paused"; fi
+    miner_running && pkill -f "^$MINER_BIN( |\$)" && log "stopped the miner for the benchmark job"
+    n=$((n + 1)); sleep 60 & wait $!; continue
+  elif [ $paused = 1 ]; then paused=0; rm -f "$VP/miner.paused"; started=0; fails=0; log "benchmark job finished: miner resumes"
+  fi
   n=$((n + 1))
   if [ "$MINER_ENV" = termux ]; then
     if miner_running; then
