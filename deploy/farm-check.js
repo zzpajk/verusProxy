@@ -47,7 +47,8 @@ const adb = new Adb(config);
         let t0 = Date.now();
         let others = workers.map(o => ({ name: o.name, serial: o.inv && o.inv.serial }));
         let runnerName = String(require('../lib/farm_setup.js').workerName(prof.profile.workerName, w.inv, others) || w.name).toLowerCase().replace(/[^a-z0-9-]/g, '-');
-        let r = await checkDevice(adb, w, prof, null, runnerName);
+        let keyList = require('../lib/farm_keys.js').wantedKeys(prof.profile, dataDir);
+        let r = await checkDevice(adb, w, prof, null, runnerName, keyList);
         if (json) { console.log(JSON.stringify(Object.assign({ name: w.name, ip: w.ip }, r), null, 2)); continue; }
         console.log(`\n${w.name} (${w.ip})  group ${groups.of(w.name) || '-'}  profile ${r.stamp}  ->  ${r.status.toUpperCase()}${r.root ? '' : '  (no root over ADB)'}  [${Date.now() - t0} ms]`);
         if (r.error) console.log('  error: ' + r.error);
@@ -65,7 +66,7 @@ const adb = new Adb(config);
             let f = config.farm || {};
             let proxyUrl = f.proxyUrl || ('http://' + (Object.values(require('os').networkInterfaces()).flat().find(a => a && (a.family === 'IPv4' || a.family === 4) && !a.internal) || {}).address + ':' + ((config.dashboard || {}).port || 8080));
             let runnerScript = null; try { runnerScript = fs.readFileSync(path.join(dataDir, 'runner', 'phone-runner.sh'), 'utf8'); } catch (e) {}
-            let p = planFixes(r, prof.profile, prof.stamp, { minerPath: (config.miner || {}).path, proxyUrl, runnerName, runnerScript, runnerRepo: prof.profile.runnerRepo });
+            let p = planFixes(r, prof.profile, prof.stamp, { minerPath: (config.miner || {}).path, proxyUrl, runnerName, runnerScript, runnerRepo: prof.profile.runnerRepo, keys: keyList });
             console.log(`\n  Apply profile (dry run, nothing was run): ${p.steps.length} step(s)`);
             for (let s of p.steps) {
                 let cmd = s.cmd.replace(/echo [A-Za-z0-9+\/=]{200,} \|/, m => 'echo <' + (m.length - 7) + ' chars of base64> |');

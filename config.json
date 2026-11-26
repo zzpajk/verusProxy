@@ -103,7 +103,9 @@
             "termuxSource": "github",
             "workerName": "{model}-{serial}",
             "runner": true,
-            "runnerRepo": "git@github.com:zzpajk/verus-phone-jobs.git"
+            "runnerRepo": "git@github.com:zzpajk/verus-phone-jobs.git",
+            "adbKeys": [],
+            "sshKeys": []
         },
         "proxyUrl": "",
         "groups": {},
