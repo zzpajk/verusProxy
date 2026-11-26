@@ -1,37 +1,101 @@
 #!/sbin/sh
-# Magisk's standard module installer (scripts/module_installer.sh). Works from the Magisk app,
-# `magisk --install-module` and a recovery that can read /data (TWRP after Android booted once).
-
-#################
-# Initialization
-#################
+# Farm bootstrap installer.
+# - Magisk already set up on /data (Magisk app, `magisk --install-module`, or a recovery after
+#   Android booted once): installed as a normal Magisk module, like Magisk's module_installer.sh.
+# - Recovery right after flashing Magisk on a fresh /data (one session, no boot in between):
+#   /data/adb does not exist yet, so the module is left in /data/farm-bootstrap and two small
+#   files are added to the Magisk-patched boot image (Magisk overlay.d) that install it on the
+#   first boot. Nothing is written to the boot partition unless every check before it passed.
 
 umask 022
-
-# echo before loading util_functions
 ui_print() { echo "$1"; }
+OUTFD=$2
+ZIPFILE=$3
+mount /data 2>/dev/null
 
-require_new_magisk() {
+no_magisk() {
   ui_print "*******************************************************"
-  ui_print " Magisk is not set up on /data yet (or /data is locked)."
-  ui_print " Boot Android once after flashing Magisk v20.4+, then"
-  ui_print " flash this zip again (or install it from the Magisk app)."
+  ui_print " Magisk not found: flash Magisk v20.4+ first, then this"
+  ui_print " zip, in the same recovery session or after a boot."
   ui_print "*******************************************************"
   exit 1
 }
 
-#########################
-# Load util_functions.sh
-#########################
+# 1. Magisk is set up on /data: the normal module install
+if [ -f /data/adb/magisk/util_functions.sh ]; then
+  . /data/adb/magisk/util_functions.sh
+  [ $MAGISK_VER_CODE -lt 20400 ] && no_magisk
+  install_module
+  exit 0
+fi
 
-OUTFD=$2
-ZIPFILE=$3
+# 2. Magisk was just flashed to a fresh /data: it left its tools in /data/magisk
+MB=
+for d in /data/magisk /cache/data_adb/magisk; do
+  [ -f $d/util_functions.sh ] && [ -f $d/magiskboot ] && { MB=$d; break; }
+done
+[ -n "$MB" ] || no_magisk
+. $MB/util_functions.sh
+[ $MAGISK_VER_CODE -lt 20400 ] && no_magisk
+$BOOTMODE && no_magisk
 
-mount /data 2>/dev/null
+setup_flashable
+mount_partitions
+get_flags
+api_level_arch_detect
+print_title "Farm bootstrap" "first-boot install"
 
-[ -f /data/adb/magisk/util_functions.sh ] || require_new_magisk
-. /data/adb/magisk/util_functions.sh
-[ $MAGISK_VER_CODE -lt 20400 ] && require_new_magisk
+touch /data/.farm_rw 2>/dev/null && rm -f /data/.farm_rw || abort "! /data is not writable (format data in TWRP, or boot once and flash again)"
 
-install_module
+W=/dev/tmp/farm-bootstrap
+rm -rf $W; mkdir -p $W/zip $W/boot
+unzip -o "$ZIPFILE" -x 'META-INF/*' -d $W/zip >&2 || abort "! Cannot unpack the zip"
+[ -f $W/zip/boot/farm-bootstrap.rc ] && [ -f $W/zip/boot/farm-stage.sh ] || abort "! Zip is missing boot/"
+
+find_boot_image
+[ -n "$BOOTIMAGE" ] || abort "! Cannot find the boot partition"
+ui_print "- Boot image: $BOOTIMAGE"
+cd $W/boot
+cp -f $MB/magiskboot ./magiskboot && chmod 755 ./magiskboot
+./magiskboot unpack "$BOOTIMAGE" >&2
+case $? in
+  0) ;;
+  3) abort "! Vendor boot image: not supported by this zip, boot once and flash it again" ;;
+  *) abort "! Cannot unpack the boot image" ;;
+esac
+RAMDISK=ramdisk.cpio
+[ -f $RAMDISK ] || abort "! No ramdisk in the boot image: boot once and flash this zip again"
+./magiskboot cpio $RAMDISK test
+[ $(( $? & 3 )) -eq 1 ] || abort "! The boot image is not patched by Magisk: flash Magisk first"
+
+# the module, for the first boot to install (keys and WiFi password: root only)
+P=/data/farm-bootstrap
+ui_print "- Leaving the module in $P"
+rm -rf $P; mkdir -p $P
+cp -a $W/zip $P/module || abort "! Cannot write $P"
+chown -R 0:0 $P
+chmod 0700 $P
+for f in farm.conf adb_keys ssh_keys; do [ -f $P/module/$f ] && chmod 0600 $P/module/$f; done
+[ -f $P/module/farm.conf ] && . $P/module/farm.conf && [ -n "$WIFI_SSID" ] && ui_print "- WiFi: $WIFI_SSID"
+
+ui_print "- Adding the first-boot script to the boot image"
+./magiskboot cpio $RAMDISK \
+  "mkdir 0750 overlay.d" \
+  "mkdir 0750 overlay.d/sbin" \
+  "add 0644 overlay.d/farm-bootstrap.rc $W/zip/boot/farm-bootstrap.rc" \
+  "add 0755 overlay.d/sbin/farm-stage.sh $W/zip/boot/farm-stage.sh" \
+  || { rm -rf $P; abort "! Cannot patch the ramdisk"; }
+./magiskboot repack "$BOOTIMAGE" >&2 || { rm -rf $P; abort "! Cannot repack the boot image"; }
+flash_image new-boot.img "$BOOTIMAGE"
+case $? in
+  0) ;;
+  1) rm -rf $P; abort "! New boot image is too big for the partition (nothing written)" ;;
+  2) rm -rf $P; abort "! Boot partition is read-only (nothing written)" ;;
+esac
+./magiskboot cleanup >&2
+cd /
+rm -rf $W
+recovery_cleanup 2>/dev/null
+ui_print "- Done. Reboot: the phone sets itself up on its first boot"
+ui_print "  (log: /data/adb/farm-bootstrap/log.txt)"
 exit 0

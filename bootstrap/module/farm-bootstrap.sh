@@ -85,6 +85,11 @@ wizard_off() {
   done_step wizard && return 0
   settings put global device_provisioned 1
   settings put secure user_setup_complete 1
+  # a wizard that already started: turn it off (the phone counts as set up now, so the
+  # launcher takes over); only ever these setup wizard packages
+  for p in org.lineageos.setupwizard com.google.android.setupwizard com.android.provision com.sec.android.app.SecSetupWizard; do
+    installed "$p" && pm disable "$p" >/dev/null 2>&1 && log "wizard: disabled $p"
+  done
   # leave a wizard that is already on screen
   am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null 2>&1
   mark wizard

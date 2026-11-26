@@ -1,0 +1,8 @@
+# Added to the Magisk-patched boot image by the farm-bootstrap zip (Magisk overlay.d), so a phone
+# flashed in one recovery session sets itself up on its very first boot. Magisk puts this after
+# init.rc and before its own rc, and replaces ${MAGISKTMP} with its tmpfs folder.
+on post-fs-data
+    exec u:r:magisk:s0 0 0 -- ${MAGISKTMP}/farm-stage.sh early ${MAGISKTMP}
+
+on property:sys.boot_completed=1
+    exec_background u:r:magisk:s0 0 0 -- ${MAGISKTMP}/farm-stage.sh late ${MAGISKTMP}
