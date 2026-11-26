@@ -97,7 +97,8 @@
             "findTorch": true,
             "findVibrate": true,
             "findSound": false,
-            "termuxSource": "fdroid"
+            "termuxSource": "fdroid",
+            "workerName": "{model}-{serial}"
         },
         "proxyUrl": "",
         "groups": {},
