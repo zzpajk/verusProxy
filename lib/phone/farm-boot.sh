@@ -73,8 +73,9 @@ start_miner() {
 
 # from keep-alive.sh: screen on and unlocked, Termux in front, so Android runs it on all cores at full speed
 FRONT='S=$(dumpsys nfc 2>/dev/null | sed -n "s/.*mScreenState=//p" | head -n 1)
-case "$S" in OFF_*) input keyevent 26; sleep 1; S=$(dumpsys nfc 2>/dev/null | sed -n "s/.*mScreenState=//p" | head -n 1); echo woke;; esac
-[ "$S" = ON_LOCKED ] && { input keyevent 82; sleep 1; echo unlocked; }
+# WAKEUP (224) never turns the screen off, unlike POWER; dismiss-keyguard opens a swipe lock screen
+case "$S" in OFF_*) input keyevent 224; sleep 1; S=$(dumpsys nfc 2>/dev/null | sed -n "s/.*mScreenState=//p" | head -n 1); echo woke;; esac
+[ "$S" = ON_LOCKED ] && { wm dismiss-keyguard 2>/dev/null || input keyevent 82; sleep 1; echo unlocked; }
 F=$(dumpsys window 2>/dev/null | grep -m 1 mCurrentFocus)
 case "$F" in *com.termux/*) ;; *) am start -n com.termux/com.termux.HomeActivity >/dev/null 2>&1; echo "brought Termux to the front";; esac'
 keep_front() {
