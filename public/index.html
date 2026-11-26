@@ -145,6 +145,27 @@ td .dim { color: var(--muted); }
 input[type=checkbox] { accent-color: var(--s1); width: 15px; height: 15px; margin: 0; vertical-align: middle; cursor: pointer; }
 
 .colmenu { position: static; }
+/* tabs, setup strip, compact pools, more filters, manage */
+.tabs { display: inline-flex; gap: 4px; margin: 0 0 14px; box-shadow: inset 0 -1px 0 var(--ring); width: 100%; }
+.tabs button { font: inherit; font-size: 13.5px; font-weight: 600; border: 0; background: none; color: var(--ink-2); padding: 8px 12px; cursor: pointer; border-bottom: 2px solid transparent; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--s1); }
+.tools-empty { color: var(--ink-2); font-size: 13px; padding: 16px; }
+.setup-strip { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 12px; padding: 8px 12px; font-size: 13px; }
+.setup-strip .lbl { color: var(--ink-2); font-weight: 600; margin-right: 4px; }
+.setup-strip .chip[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--s1); }
+.setup-strip .spacer { flex: 1; }
+.pools-line { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; font-size: 13px; }
+.pools-line .spacer { flex: 1; }
+.pools-card.compact .pools-head, .pools-card.compact .table-scroll, .pools-card.compact .events { display: none; }
+.pools-card:not(.compact) .pools-line { display: none; }
+#moreFilters { display: contents; }
+#moreFilters[hidden] { display: none; }
+#manageItems { display: inline-flex; gap: 8px; flex-wrap: wrap; }
+#manageItems[hidden] { display: none; }
+.dr-run { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.dr-run select, .dr-run input { font: inherit; font-size: 13px; height: 30px; border: 0; border-radius: 8px; box-shadow: inset 0 0 0 1px var(--ring); background: var(--page); color: var(--ink); padding: 0 8px; min-width: 0; }
+.dr-run input { flex: 1 1 160px; }
+.dr-run select { flex: 0 1 200px; }
 /* menus open from the footer's right edge so they always stay on screen */
 .colmenu .panel {
   position: absolute; right: 12px; bottom: 50px; z-index: 10; background: var(--surface); border-radius: 10px;
@@ -308,6 +329,10 @@ td .dupe { color: var(--serious); font-weight: 400; font-size: 12px; margin-left
     </div>
   </header>
 
+  <nav class="tabs" role="tablist" aria-label="Views">
+    <button role="tab" id="tabBtnOverview" data-tab="overview" aria-controls="tabOverview">Overview</button><button role="tab" id="tabBtnTools" data-tab="tools" aria-controls="tabTools">Tools</button>
+  </nav>
+  <div id="tabOverview" role="tabpanel" aria-labelledby="tabBtnOverview">
   <section class="kpis">
     <div class="card kpi hero"><div class="label" id="kHashLabel">Fleet hashrate</div><div class="value" id="kHash">—</div><div class="sub" id="kHashSub">—</div></div>
     <div class="card kpi"><div class="label">Devices online</div><div class="value" id="kOnline">—</div><div class="sub" id="kOnlineSub">—</div></div>
@@ -316,13 +341,17 @@ td .dupe { color: var(--serious); font-weight: 400; font-size: 12px; margin-left
     <div class="card kpi"><div class="label">CPU temperature</div><div class="value" id="kTemp">—</div><div class="sub" id="kTempSub">—</div></div>
   </section>
 
-  <section class="card pools-card" id="poolsCard" hidden>
+  <div class="card setup-strip" id="setupStrip" hidden></div>
+
+  <section class="card pools-card compact" id="poolsCard" hidden>
+    <div class="pools-line" id="poolsLine"></div>
     <div class="pools-head">
       <h2>Pools</h2>
       <span class="hint" id="poolsHint"></span>
       <span class="spacer"></span>
       <span class="toggle"><button id="autoToggle" role="switch" aria-checked="false" aria-label="Auto failover"></button><label for="autoToggle">Auto failover</label></span>
       <button class="btn small" id="resetPreferred" hidden>Use priority order</button>
+      <button class="btn small" id="poolsCollapse" title="Back to the one-line summary">Less</button>
     </div>
     <div class="table-scroll"><table>
       <thead><tr><th class="nosort num">#</th><th class="nosort">Pool</th><th class="nosort">Status</th><th class="nosort num">Ping</th><th class="nosort num">Pool-side</th><th class="nosort num">Accepted</th><th class="nosort num">Rejected</th><th class="nosort num" title="Time since the pool's last new job. Long gaps are normal - Verus blocks have no time limit - and never cause a switch.">Last job</th><th class="nosort">Last problem</th><th class="nosort"></th></tr></thead>
@@ -341,9 +370,12 @@ td .dupe { color: var(--serious); font-weight: 400; font-size: 12px; margin-left
     <input type="search" id="q" placeholder="Search name, model, IP…" aria-label="Search devices">
     <select id="fStatus" aria-label="Status"><option value="">All statuses</option><option value="online">Online</option><option value="reconnecting">Reconnecting</option><option value="stale">No shares</option><option value="elsewhere">Mining elsewhere</option><option value="idle">Not mining</option><option value="offline">Offline</option></select>
     <select id="fGroup" aria-label="Group"><option value="">All groups</option></select>
+    <button class="btn" id="moreFiltersBtn" aria-expanded="false" aria-controls="moreFilters">More filters</button>
+    <span id="moreFilters" hidden>
     <select id="fMake" aria-label="Make"><option value="">All makes</option></select>
     <select id="fOs" aria-label="System"><option value="">All systems</option></select>
     <select id="fRoot" aria-label="Root" hidden><option value="">Rooted or not</option><option value="yes">Rooted</option><option value="su">Rooted, not for ADB</option><option value="no">Not rooted</option><option value="unknown">Not read yet</option></select>
+    </span>
     <select id="fTemp" aria-label="Temperature"><option value="">Any temperature</option><option value="60">CPU ≥ 60 °C</option><option value="70">CPU ≥ 70 °C</option><option value="80">CPU ≥ 80 °C</option></select>
     <span class="count" id="filterCount"></span>
     <button class="btn" id="clearFilters" hidden>Clear</button>
@@ -366,20 +398,27 @@ td .dupe { color: var(--serious); font-weight: 400; font-size: 12px; margin-left
     <div class="table-scroll"><table id="tbl"><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>
     <div class="table-foot">
       <span id="tableNote">Tick a device to plot it. Click a column to sort.</span>
+      <button class="btn" id="manageBtn" aria-expanded="false" aria-controls="manageItems">Manage ▾</button>
+      <span id="manageItems" hidden>
       <div class="colmenu" id="findmenu" hidden><button class="btn" id="findBtn" title="Phones on USB, and phones on the network with ADB on">Find phones</button><div class="panel xwide" id="findPanel"></div></div>
       <div class="colmenu" id="addmenu"><button class="btn" id="addBtn" title="Add devices by IP address, e.g. to reach them over SSH before they mine">Add devices</button><div class="panel wide" id="addPanel"></div></div>
       <div class="colmenu" id="groupmenu"><button class="btn" id="groupBtn">Groups</button><div class="panel wide" id="groupPanel"></div></div>
       <div class="colmenu" id="colmenu"><button class="btn" id="colBtn">Columns</button><div class="panel" id="colPanel"></div></div>
+      </span>
     </div>
   </section>
+  </div>
+
+  <div id="tabTools" role="tabpanel" aria-labelledby="tabBtnTools" hidden>
+  <div class="card tools-empty" id="toolsEmpty" hidden>Remote commands and miner updates need SSH: set ssh.enabled and dashboard.auth in config.local.json.</div>
   <section class="card ssh-card" id="sshCard" hidden>
     <div class="ssh-head">
       <h2>Remote commands</h2>
       <span class="hint" id="sshHint"></span>
       <span class="spacer"></span>
-      <button class="btn small" id="sshSetupBtn">Setup</button>
+
     </div>
-    <div class="ssh-setup" id="sshSetup" hidden></div>
+    <div class="mv-help" id="sshKeysNote">Logins: the phones accept the box's SSH key, plus the keys in the farm key list (<code>farm.defaults.sshKeys</code> / <code>adbKeys</code> in config.local.json, or data/keys/), synced by Apply profile.</div>
     <div class="ssh-form">
       <select id="sshTarget" aria-label="Devices to run on"></select>
       <select id="sshPort" aria-label="Run through" hidden></select>
@@ -410,6 +449,7 @@ td .dupe { color: var(--serious); font-weight: 400; font-size: 12px; margin-left
     <div class="mv-lib" id="mvLib"></div>
     <div class="ssh-runs" id="mvJobs"></div>
   </section>
+  </div>
   <p class="note" id="footNote"></p>
 </div>
 <div class="scrim" id="scrim"></div>
@@ -455,7 +495,7 @@ function tempLevel(t) {
 const STATUS = { online: ['--good', 'Online'], idle: ['--muted', 'Not mining'], reconnecting: ['--warning', 'Reconnecting'], stale: ['--warning', 'No shares'], elsewhere: ['--serious', 'Mining elsewhere'], offline: ['--critical', 'Offline'] };
 
 // ---------- state ----------
-const DEFAULT_HIDDEN = ['address','kernel','arch','ram','load','ping','freq','firstSeen','minerShares','threads','userland','notes','storage'];
+const DEFAULT_HIDDEN = ['address','kernel','arch','ram','load','ping','freq','firstSeen','minerShares','threads','notes','storage'];
 const state = {
   range: store.get('range', '6h'),
   metric: store.get('metric', 'rep'),
@@ -470,7 +510,7 @@ const state = {
 // columns added in a later version start hidden if they are hidden by default
 (() => {
   const seen = store.get('colsSeen', null);
-  const all = ['plot','status','name','group','make','model','soc','os','root','access','kernel','arch','cores','freq','ram','storage','temp','battery','load','hash','other','perCore','threads','shares','rej','minerShares','software','minerver','termux','userland','ping','ip','address','uptime','lastShare','info','notes','firstSeen','action'];
+  const all = ['plot','status','name','group','make','model','soc','os','root','access','setup','kernel','arch','cores','freq','ram','storage','temp','battery','load','hash','other','perCore','threads','shares','rej','minerShares','software','minerver','termux','ping','ip','address','uptime','lastShare','info','notes','firstSeen','action'];
   if (seen) {
     const fresh = all.filter(k => !seen.includes(k) && DEFAULT_HIDDEN.includes(k) && !state.hiddenCols.includes(k));
     if (fresh.length) { state.hiddenCols = state.hiddenCols.concat(fresh); store.set('hiddenCols', state.hiddenCols); }
@@ -491,6 +531,7 @@ const COLS = [
   { key: 'os', label: 'System', val: w => (w.os || '').toLowerCase() },
   { key: 'root', label: 'Root', val: w => ({ yes: 0, su: 1, no: 2 })[w.root] },
   { key: 'access', label: 'Access', val: w => accessParts(w).filter(p => p[1] === 'ok').length * -1 || null },
+  { key: 'setup', label: 'Setup', val: w => w.farm ? ({ 'in sync': 0, drifted: 1, 'not set up': 2, error: 3 })[w.farm.status] : null },
   { key: 'kernel', label: 'Kernel', val: w => w.kernel || '' },
   { key: 'arch', label: 'Arch', val: w => w.arch || '' },
   { key: 'cores', label: 'Cores', num: true, val: w => w.cores },
@@ -510,7 +551,6 @@ const COLS = [
   { key: 'software', label: 'Miner', val: w => w.software || '' },
   { key: 'minerver', label: 'Miner build', val: w => minerLabel(w) || null },
   { key: 'termux', label: 'Termux', val: w => w.termux || '' },
-  { key: 'userland', label: 'UserLAnd', val: w => w.userland || '' },
   { key: 'ping', label: 'Ping ms', num: true, val: w => w.ping },
   { key: 'ip', label: 'IP', val: w => (w.ip || '').split('.').map(x => x.padStart(3, '0')).join('.') },
   { key: 'address', label: 'Wallet', val: w => w.address || '' },
@@ -548,9 +588,15 @@ function visibleCols() { return orderedCols().filter(c => c.fixed || !state.hidd
 
 // ---------- filtering ----------
 function filters() {
-  return { q: $('q').value.trim().toLowerCase(), status: $('fStatus').value, group: $('fGroup').value, make: $('fMake').value, os: $('fOs').value, root: $('fRoot').value, temp: Number($('fTemp').value) || 0 };
+  return { q: $('q').value.trim().toLowerCase(), status: $('fStatus').value, group: $('fGroup').value, make: $('fMake').value, os: $('fOs').value, root: $('fRoot').value, temp: Number($('fTemp').value) || 0, setup: state.fSetup || '' };
 }
-function filterActive(f) { return !!(f.q || f.status || f.group || f.make || f.os || f.root || f.temp); }
+function filterActive(f) { return !!(f.q || f.status || f.group || f.make || f.os || f.root || f.temp || f.setup); }
+// setup state for the summary strip: in sync / drifted / not set up / could not tell (failed or not checked)
+function setupState(w) {
+  const f = w.farm;
+  if (!f) return w.conn && w.conn.adb === 'device' ? 'unknown' : null;
+  return f.status === 'in sync' ? 'sync' : f.status === 'drifted' ? 'drifted' : f.status === 'not set up' ? 'notset' : 'unknown';
+}
 function filtered() {
   if (!state.stats) return [];
   const f = filters();
@@ -561,6 +607,7 @@ function filtered() {
     if (f.os && osFamily(w.os) !== f.os) return false;
     if (f.temp && !(w.cpuTemp >= f.temp)) return false;
     if (f.root && (w.root || 'unknown') !== f.root) return false;
+    if (f.setup && setupState(w) !== f.setup) return false;
     if (f.q) {
       const hay = [w.name, w.group, w.make, w.model, w.marketName, w.soc, w.os, w.ip, w.software, w.address, w.notes, w.androidId, w.inv && w.inv.serial].join(' ').toLowerCase();
       if (!hay.includes(f.q)) return false;
@@ -667,7 +714,26 @@ const ROOT = {
   su: ['--warning', 'Rooted', 'Has su, but the ADB shell is not allowed root: in Magisk/KernelSU, grant root to "Shell" (com.android.shell)'],
   no: ['--muted', 'No', 'No su found: not rooted']
 };
-// which ways in answer: ADB, then each SSH port (Termux 8022, UserLAnd 2022, ...)
+// farm setup check (read-only, over ADB): [color, label]
+const FARM = {
+  'in sync': ['--good', 'In sync'],
+  drifted: ['--warning', 'Drifted'],
+  'not set up': ['--muted', 'Not set up'],
+  error: ['--critical', 'Not checked']
+};
+function farmTitle(w) {
+  const f = w.farm; if (!f) return 'Not checked yet (hourly over ADB, read-only).';
+  if (f.status === 'error') return 'Check failed: ' + (f.error || 'no answer');
+  const bad = (f.items || []).filter(i => i.ok === false);
+  return 'Profile ' + f.stamp + (bad.length ? '\nDrifted: ' + bad.map(i => i.label + ' (' + (i.have || '?') + ')').join('; ') : '') + ((f.unknown || []).length ? '\nCould not tell: ' + f.unknown.join(', ') : '');
+}
+function farmBadge(w) {
+  const f = w.farm; if (!f) return null;
+  const F = FARM[f.status] || FARM.error;
+  const n = (f.items || []).filter(i => i.ok === false).length;
+  return dot(F[0], F[1] + (f.status === 'drifted' || (f.status === 'not set up' && n) ? ' · ' + n : ''), 'status');
+}
+// which ways in answer: ADB, then each SSH port (Termux 8022, ...)
 function accessParts(w) {
   const reg = state.stats && state.stats.registry, c = w.conn, out = [];
   if (!reg) return out;
@@ -724,7 +790,7 @@ function apiWhy(e) {
     : e.reason === 'timeout' || e.reason === 'unreachable' ? 'No answer from ccminer\'s API at ' + at + ' (phone asleep, Wi-Fi client isolation, or a firewall).'
     : 'ccminer\'s API at ' + at + ': ' + e.reason;
 }
-const MINER_TWICE = (w) => 'ccminer is connected ' + w.minersTwice + ' times from ' + w.connList[0].ip + ': the miner is running more than once on this device (e.g. a test session next to the normal miner, or both Termux and UserLAnd mining). They share the CPU, so each gets only part of the speed. Stop the extra one.';
+const MINER_TWICE = (w) => 'ccminer is connected ' + w.minersTwice + ' times from ' + w.connList[0].ip + ': the miner is running more than once on this device (e.g. a test session next to the normal miner). They share the CPU, so each gets only part of the speed. Stop the extra one.';
 const SAME_NAME = (w) => 'The worker name "' + (w.baseName || w.name) + '" is logged in from more than one address, so these are different devices: ' + [w.name].concat(w.sameName).join(', ') + '. Give each one its own worker name in its ccminer settings (the part after the dot in the user name).';
 function repCell(tr, w) {
   if (w.repHashrate === null && w.apiErr && (w.status === 'online' || w.status === 'stale')) {
@@ -855,10 +921,10 @@ function renderTable() {
           break;
         }
         case 'access': cell(tr, accessBadges(w)); break;
+        case 'setup': { const td = cell(tr, farmBadge(w)); td.title = farmTitle(w); break; }
         case 'storage': cell(tr, w.dataFreeMB ? (w.dataFreeMB / 1024).toFixed(1) + ' GB' : null, 'num'); break;
         case 'minerver': { const b = minerBadge(w); const td = cell(tr, b ? b.el : null); if (b) td.title = b.title; break; }
         case 'termux': cell(tr, w.termux); break;
-        case 'userland': cell(tr, w.userland); break;
         case 'info': {
           const td = cell(tr, w.invTs ? fmtAgo(w.invTs, now) : null, 'num');
           if (w.invError) { td.title = 'Last read failed: ' + w.invError; td.style.color = css('--serious'); }
@@ -1066,7 +1132,17 @@ function renderGroupPanel() {
     ren.addEventListener('click', () => { const to = (prompt('Rename group "' + name + '" to:', name) || '').trim(); if (to && to !== name) groupAction('rename', { from: name, to }); });
     const del = document.createElement('button'); del.className = 'linkbtn'; del.textContent = 'Delete';
     del.addEventListener('click', () => { if (confirm('Delete group "' + name + '"? Its ' + g.devices + ' device(s) stay, just without a group.')) groupAction('delete', { name }); });
-    act.append(show, ren, del);
+    const members = state.stats.workers.filter(w => w.group === name);
+    const finding = members.some(w => w.findUntil);
+    const fnd = document.createElement('button'); fnd.className = 'linkbtn'; fnd.textContent = finding ? 'Stop find' : 'Find';
+    fnd.title = 'Find me on every phone in this group (LED, torch, vibration, sound as set in the farm profile)';
+    fnd.addEventListener('click', async () => {
+      const r = await regAction('farm/find', { workers: members.map(w => w.name), on: !finding });
+      const bad = (r.results || []).filter(x => !x.ok);
+      if (!r.ok || bad.length) alert((r.error || '') + (bad.length ? 'Not reached: ' + bad.map(x => x.name + ' (' + x.error + ')').join(', ') : ''));
+      await loadStats(true); renderGroupPanel();
+    });
+    act.append(show, fnd, ren, del);
     const meta = document.createElement('span'); meta.className = 'gmeta';
     meta.textContent = g.online + ' / ' + g.devices + ' online · ' + fmtH(g.hash) + (state.metric === 'rep' ? ' reported' : ' pool-side');
     row.append(cb, nm, act, meta);
@@ -1401,9 +1477,114 @@ function renderPools() {
     ev.appendChild(row);
   }
 }
+// one line while every pool is healthy (active one answering, the others reachable); details on demand
+function renderPoolsLine() {
+  const ps = state.pools, line = $('poolsLine'); if (!ps || !ps.pools) return;
+  const act = ps.pools.find(p => p.index === ps.active);
+  const healthy = ps.pools.every(p => p.index === ps.active ? p.status !== 'down' : p.status === 'up');
+  if (!healthy) state.poolsOpen = true;            // a problem: always show the full card
+  $('poolsCard').classList.toggle('compact', !state.poolsOpen);
+  $('poolsCollapse').hidden = !healthy;
+  line.textContent = '';
+  const h = document.createElement('strong'); h.textContent = 'Pools';
+  line.append(h, dot(healthy ? '--good' : '--critical', (act ? act.name + ' active' : 'no active pool') + ' · ' + ps.pools.length + ' pool' + (ps.pools.length === 1 ? '' : 's') + (healthy ? ', all healthy' : ', a problem') + ' · auto failover ' + (ps.auto ? 'on' : 'off'), 'status'));
+  const sp = document.createElement('span'); sp.className = 'spacer'; line.appendChild(sp);
+  const more = document.createElement('button'); more.className = 'btn small'; more.textContent = 'Details';
+  more.addEventListener('click', () => { state.poolsOpen = true; renderPoolsLine(); });
+  line.appendChild(more);
+}
+$('poolsCollapse').addEventListener('click', () => { state.poolsOpen = false; renderPoolsLine(); });
+
+// ---------- tabs ----------
+function showTab(t) {
+  t = t === 'tools' ? 'tools' : 'overview';
+  state.tab = t;
+  try { localStorage.setItem('vp.tab', t); } catch (e) {}
+  $('tabOverview').hidden = t !== 'overview'; $('tabTools').hidden = t !== 'tools';
+  $('tabBtnOverview').setAttribute('aria-selected', String(t === 'overview'));
+  $('tabBtnTools').setAttribute('aria-selected', String(t === 'tools'));
+  if (t === 'overview' && state.stats) renderChart();
+}
+for (const b of document.querySelectorAll('.tabs button')) b.addEventListener('click', () => showTab(b.dataset.tab));
+function syncToolsEmpty() { $('toolsEmpty').hidden = !($('sshCard').hidden && $('mvCard').hidden); }
+
+// ---------- setup summary strip ----------
+function renderSetupStrip() {
+  const ws = state.stats ? state.stats.workers : [];
+  const c = { sync: 0, drifted: 0, notset: 0, unknown: 0 };
+  for (const w of ws) { const k = setupState(w); if (k) c[k]++; }
+  const total = c.sync + c.drifted + c.notset + c.unknown;
+  const strip = $('setupStrip');
+  strip.hidden = total === 0;
+  if (!total) return;
+  const sig = JSON.stringify(c) + (state.fSetup || '') + (state.applyBusy || '');
+  if (strip.dataset.sig === sig) return;
+  strip.dataset.sig = sig; strip.textContent = '';
+  const l = document.createElement('span'); l.className = 'lbl'; l.textContent = 'Farm setup'; strip.appendChild(l);
+  for (const [k, label, col] of [['sync', 'in sync', '--good'], ['drifted', 'drifted', '--warning'], ['notset', 'not set up', '--muted'], ['unknown', 'could not tell', '--serious']]) {
+    const b = document.createElement('button'); b.className = 'chip';
+    b.setAttribute('aria-pressed', String(state.fSetup === k));
+    b.title = state.fSetup === k ? 'Show all devices again' : 'Show only these in the table';
+    b.appendChild(dot(col, c[k] + ' ' + label, 'mvb'));
+    b.addEventListener('click', () => { state.fSetup = state.fSetup === k ? '' : k; renderSetupStrip(); renderTable(); renderChart(); });
+    strip.appendChild(b);
+  }
+  const sp = document.createElement('span'); sp.className = 'spacer'; strip.appendChild(sp);
+  const ap = document.createElement('button'); ap.className = 'btn small'; ap.textContent = state.applyBusy ? state.applyBusy : 'Apply to drifted (' + c.drifted + ')…';
+  ap.disabled = !c.drifted || !!state.applyBusy || !(state.stats.registry && state.stats.registry.adb && state.stats.registry.adb.enabled);
+  ap.title = 'Works out the fixes for every drifted phone, shows them all, and runs them only after you confirm';
+  ap.addEventListener('click', applyToDrifted);
+  strip.appendChild(ap);
+}
+async function applyToDrifted() {
+  const names = (state.stats ? state.stats.workers : []).filter(w => setupState(w) === 'drifted').map(w => w.name);
+  if (!names.length) return;
+  state.applyBusy = 'Working out the fixes…'; renderSetupStrip();
+  const plans = [];
+  for (const n of names) plans.push([n, await regAction('farm/apply', { worker: n, dryRun: true })]);
+  state.applyBusy = null; renderSetupStrip();
+  const todo = plans.filter(([, p]) => p.ok && p.steps && p.steps.length);
+  const failed = plans.filter(([, p]) => !p.ok);
+  const lines = [];
+  for (const [n, p] of plans) {
+    if (!p.ok) { lines.push(n + ': could not plan (' + (p.error || 'failed') + ')'); continue; }
+    lines.push(n + ': ' + (p.steps.length ? p.steps.map(s => s.what).join(' · ') : 'nothing to do automatically') + (p.manual && p.manual.length ? '  [by hand: ' + p.manual.map(m => m.what).join(' · ') + ']' : ''));
+  }
+  if (!todo.length) { alert('Nothing to fix automatically.\n\n' + lines.join('\n')); return; }
+  if (!confirm('Apply profile to ' + todo.length + ' drifted phone' + (todo.length === 1 ? '' : 's') + '? Termux is never reinstalled; anything that needs that is only listed.\n\n' + lines.join('\n'))) return;
+  let done = 0, bad = [];
+  for (const [n] of todo) {
+    state.applyBusy = 'Applying ' + (++done) + ' of ' + todo.length + '…'; renderSetupStrip();
+    const r = await regAction('farm/apply', { worker: n, dryRun: false });
+    if (!r.ok) bad.push(n + ' (' + (r.error || (r.steps || []).filter(s => s.ok === false).map(s => s.what).join(', ') || 'failed') + ')');
+  }
+  state.applyBusy = null;
+  await loadStats(true);
+  if (bad.length || failed.length) alert('Applied to ' + (todo.length - bad.length) + ' of ' + todo.length + '.' + (bad.length ? '\n\nFailed: ' + bad.join('; ') : '') + (failed.length ? '\n\nNot planned: ' + failed.map(([n]) => n).join(', ') : ''));
+}
+
+// ---------- more filters, manage menu ----------
+function syncMoreFilters() {
+  const set = !!($('fMake').value || $('fOs').value || $('fRoot').value);
+  if (set) state.moreFilters = true;
+  $('moreFilters').hidden = !state.moreFilters;
+  $('moreFiltersBtn').setAttribute('aria-expanded', String(!!state.moreFilters));
+  $('moreFiltersBtn').textContent = state.moreFilters ? 'Fewer filters' : 'More filters';
+  $('moreFiltersBtn').disabled = state.moreFilters && set;
+  $('moreFiltersBtn').title = state.moreFilters && set ? 'Clear the make, system and root filters first' : '';
+}
+$('moreFiltersBtn').addEventListener('click', () => { state.moreFilters = !state.moreFilters; syncMoreFilters(); });
+for (const id of ['fMake', 'fOs', 'fRoot']) $(id).addEventListener('change', syncMoreFilters);
+$('manageBtn').addEventListener('click', () => {
+  const open = $('manageItems').hidden;
+  $('manageItems').hidden = !open;
+  $('manageBtn').setAttribute('aria-expanded', String(open));
+  if (!open) for (const id of ['colmenu', 'groupmenu', 'addmenu', 'findmenu']) $(id).classList.remove('open');
+});
+
 async function loadPools() {
   try { state.pools = state.demo ? Demo.pools() : await getJSON('api/pools'); } catch (e) { return; }
-  renderPools();
+  renderPools(); renderPoolsLine();
 }
 async function poolAction(action, body) {
   if (state.demo) { Demo.poolAction(action, body); renderPools(); return; }
@@ -1457,6 +1638,7 @@ function fillSshTargets() {
 function sshPick(target) {
   state.sshPendingTarget = target;
   fillSshTargets();
+  showTab('tools');
   $('sshCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
   $('sshCmd').focus({ preventScroll: true });
 }
@@ -1471,15 +1653,15 @@ function renderSsh() {
   const ss = state.ssh;
   // only shown when the proxy has remote commands switched on
   if (!ss || !ss.enabled) {
-    $('sshCard').hidden = true;
+    $('sshCard').hidden = true; syncToolsEmpty();
     if (ss && ss.reason && !state.demo) $('footNote').textContent = ss.reason + ' See "Remote commands" in the README.';
     return;
   }
   if (!state.demo) $('footNote').textContent = '';
   const first = $('sshCard').hidden;
-  $('sshCard').hidden = false;
+  $('sshCard').hidden = false; syncToolsEmpty();
   if (first && state.stats) renderTable();   // adds the SSH buttons to the rows
-  // what to run through: Termux SSH (8022), UserLAnd SSH (2022), ADB shell, ADB root shell
+  // what to run through: Termux SSH (8022), ADB shell, ADB root shell
   const ps = $('sshPort'), ports = ss.ports || [{ port: ss.port, user: ss.user, authMode: ss.authMode }];
   const chans = sshChannels();
   const chanSig = JSON.stringify(chans);
@@ -1507,7 +1689,7 @@ function renderSsh() {
   $('sshCmd').placeholder = !ss.allowCustom ? 'Pick a saved command below'
     : ch.id === 'adb' ? 'Android shell command, e.g. getprop ro.product.model'
     : ch.id === 'adbroot' ? 'Root shell command, e.g. dumpsys battery | head'
-    : ch.port === 2022 ? 'Command to run in UserLAnd, e.g. uname -a' : 'Command to run in Termux, e.g. uptime';
+    : 'Command to run in Termux, e.g. uptime';
   fillSshTargets();
   // presets
   const pr = $('sshPresets');
@@ -1520,36 +1702,6 @@ function renderSsh() {
       b.addEventListener('click', () => { state.sshPreset = p.name; $('sshCmd').value = p.command; renderSsh(); $('sshCmd').focus(); });
       pr.appendChild(b);
     }
-  }
-  // setup help
-  const su = $('sshSetup');
-  su.textContent = '';
-  const para = (t) => { const d = document.createElement('div'); d.textContent = t; su.appendChild(d); return d; };
-  const pre = (t) => { const d = document.createElement('pre'); d.textContent = t; su.appendChild(d); return d; };
-  if (ss.authMode === 'password') {
-    para('Logging in with the password from ssh.password in config.local.json, so no key setup is needed. Every device needs that same Termux password (set it in Termux with `passwd`).');
-  } else {
-    para('The proxy logs in with an SSH key. Each device needs the proxy\'s public key once. (On a trusted network you can use a password instead: set ssh.password in config.local.json.)');
-  }
-  if (ss.authMode === 'password') {
-    // nothing to set up on the proxy side
-  } else if (ss.publicKey) {
-    para('Easiest: on the proxy machine, as user "' + ss.proxyUser + '", run this — it asks each device\'s Termux password once:');
-    pre('cd ~/verusProxy && ./deploy/ssh-copy-key.sh');
-    para('Or in Termux on a device, paste:');
-    pre("mkdir -p ~/.ssh && echo '" + ss.publicKey + "' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys");
-  } else {
-    para('No SSH key found for user "' + ss.proxyUser + '" on the proxy machine. Create one there, then run the setup script:');
-    pre('ssh-keygen -t ed25519 -N "" -f ~/.ssh/id_ed25519\ncd ~/verusProxy && ./deploy/ssh-copy-key.sh');
-  }
-  para('Termux needs sshd running (`pkg install openssh`, set a password with `passwd`, then `sshd`; add `sshd` to ~/.termux/boot to start it with the phone).');
-  const reg = state.stats && state.stats.registry;
-  if (reg && reg.adb) {
-    if (reg.adb.enabled) {
-      para('ADB: the proxy connects to each phone on port ' + reg.adb.port + '. On rooted phones a Termux:Boot script keeps ADB on WiFi after every reboot (~/.termux/boot/adb-wifi):');
-      pre('#!/data/data/com.termux/files/usr/bin/sh\nsu -c settings put global adb_enabled 1\nsu -c setprop service.adb.tcp.port ' + reg.adb.port + '\nsu -c stop adbd\nsu -c start adbd');
-      para('The first connection from the proxy needs "Allow USB debugging" accepted on the phone, or use "Install ADB key" in a device\'s details (works over Termux SSH on rooted phones). "ADB root shell" needs root granted to Shell in Magisk/KernelSU.');
-    } else para('ADB: ' + reg.adb.reason);
   }
   renderSshRuns();
 }
@@ -1666,7 +1818,6 @@ $('sshCmd').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('sshRu
 $('sshCmd').addEventListener('input', () => { if (state.sshPreset) { state.sshPreset = null; renderSsh(); } });
 $('sshPort').addEventListener('change', () => { state.sshChanPick = $('sshPort').value; store.set('sshChan', state.sshChanPick); renderSsh(); });
 state.sshChanPick = store.get('sshChan', null) || (store.get('sshPort', null) ? 'ssh:' + store.get('sshPort', null) : null);
-$('sshSetupBtn').addEventListener('click', () => { $('sshSetup').hidden = !$('sshSetup').hidden; });
 
 // ---------- data ----------
 async function getJSON(url) {
@@ -1704,7 +1855,8 @@ async function loadStats(force) {
   const reg = state.stats.registry;
   $('findmenu').hidden = !(reg && reg.adb && (reg.adb.enabled || state.demo));
   $('fRoot').hidden = !ws.some(w => w.root);
-  renderKpis(); renderTable();
+  renderKpis(); renderSetupStrip(); renderTable();
+  syncMoreFilters();
   renderDrawer();
   if ($('findmenu').classList.contains('open') && !$('findPanel').contains(document.activeElement)) renderFindPanel();
   loadPools();
@@ -1763,6 +1915,43 @@ function factList(rows) {
     dl.append(dt, dd);
   }
   return dl;
+}
+// side panel: run a command / update the miner on this one phone (same as the Tools tab, for one device)
+function drawerTools(d, w) {
+  const ss = state.ssh, mi = state.miner;
+  const sshOn = ss && ss.enabled && !ss.reason;
+  if (sshOn) {
+    const row = document.createElement('div'); row.className = 'dr-run';
+    const sel = document.createElement('select'); sel.setAttribute('aria-label', 'Saved command');
+    const o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'Saved commands…'; sel.appendChild(o0);
+    for (const p of ss.presets || []) { const o = document.createElement('option'); o.value = p.name; o.textContent = p.name; sel.appendChild(o); }
+    const inp = document.createElement('input'); inp.className = 'mono'; inp.placeholder = 'Command to run in Termux'; inp.setAttribute('aria-label', 'Command');
+    inp.readOnly = !ss.allowCustom; inp.spellcheck = false; inp.value = state.drawerCmd && state.drawerCmd.name === w.name ? state.drawerCmd.cmd : '';
+    sel.addEventListener('change', () => { const p = (ss.presets || []).find(x => x.name === sel.value); if (p) inp.value = p.command; state.drawerCmd = { name: w.name, cmd: inp.value }; });
+    inp.addEventListener('input', () => { state.drawerCmd = { name: w.name, cmd: inp.value }; });
+    const go = document.createElement('button'); go.className = 'btn small'; go.textContent = 'Run command';
+    go.addEventListener('click', async () => {
+      const p = (ss.presets || []).find(x => x.name === sel.value && x.command === inp.value);
+      await sshRun([w.name], inp.value, p ? p.name : null, (sshChannels().find(c => !c.reason) || {}).id);
+      state.drawerMsg = { text: 'Started: the output is under Tools → Remote commands.' }; renderDrawer();
+    });
+    row.append(sel, inp, go); d.appendChild(row);
+  }
+  if (mi && mi.enabled) {
+    const row = document.createElement('div'); row.className = 'dr-run';
+    const sel = document.createElement('select'); sel.setAttribute('aria-label', 'Miner update');
+    const l = mi.latest;
+    const acts = [['build', 'Build newest ' + mi.branch + (l && l.commit ? ' (' + l.commit.slice(0, 7) + ')' : '')]];
+    for (const b of mi.library || []) acts.push(['install:' + b.sha256, 'Install: ' + b.label]);
+    acts.push(['rollback', 'Roll back to the previous miner'], ['check', 'Check which miner it has']);
+    for (const [v, t] of acts) { const o = document.createElement('option'); o.value = v; o.textContent = t; sel.appendChild(o); }
+    const go = document.createElement('button'); go.className = 'btn small'; go.textContent = 'Update miner';
+    go.addEventListener('click', () => {
+      const a = sel.value, action = a.startsWith('install:') ? 'install' : a;
+      minerRun(action, [w.name], { sha256: a.startsWith('install:') ? a.slice(8) : undefined, restart: true });
+    });
+    row.append(sel, go); d.appendChild(row);
+  }
 }
 function renderDrawer() {
   if (!state.drawer || !state.stats) return;
@@ -1859,8 +2048,83 @@ function renderDrawer() {
       ['Termux', inv.termux || 'not installed'],
       ['Termux:Boot', inv.termuxBoot || (inv.termux ? 'not installed (needed to start ADB and ccminer at boot)' : null)],
       ['Termux:API', inv.termuxApi],
-      ['UserLAnd', inv.userland]
     ]));
+  }
+  if (w.farm || adbOn) {
+    const f = w.farm;
+    const hf = document.createElement('h3'); hf.textContent = 'Farm setup' + (f ? ' · checked ' + fmtAgo(f.ts, now) : ''); d.appendChild(hf);
+    if (!f) { const x = document.createElement('div'); x.className = 'dr-msg'; x.textContent = 'Not checked yet: the proxy reads it over ADB every hour (read-only, it changes nothing).'; d.appendChild(x); }
+    else if (f.status === 'error') { const x = document.createElement('div'); x.className = 'dr-msg bad'; x.textContent = 'Check failed: ' + (f.error || 'no answer'); d.appendChild(x); }
+    else {
+      const F = FARM[f.status] || FARM.error;
+      const src = ['defaults', f.profileFrom && f.profileFrom.group ? 'group ' + (w.group || '') : null, f.profileFrom && f.profileFrom.device ? 'device' : null].filter(Boolean).join(' + ');
+      const rows = [['State', dot(F[0], F[1], 'status')], ['Profile', f.stamp + ' (' + src + ')']];
+      for (const i of f.items || []) {
+        const col = i.ok === true ? '--good' : i.ok === false ? '--warning' : '--muted';
+        const el = dot(col, (i.have || '?') + (i.ok === false && i.want ? ' · want ' + i.want : ''), 'status');
+        if (i.ok === null) el.title = 'Could not tell';
+        rows.push([i.label, el]);
+      }
+      d.appendChild(factList(rows));
+      if (!f.root) { const x = document.createElement('div'); x.className = 'dr-msg'; x.textContent = 'Checked without root (the ADB shell has no root here), so some items could not be read.'; d.appendChild(x); }
+    }
+    if (adbOn) {
+      const fa = document.createElement('div'); fa.className = 'dr-actions';
+      const b = document.createElement('button'); b.className = 'btn small'; b.textContent = 'Check setup'; b.title = 'Compare this phone with its farm profile now (read-only)';
+      b.addEventListener('click', () => run('Checking setup', 'farm/check', { workers: [w.name] }, r => { const x = r.results && r.results[0] && r.results[0].farm; return x ? 'Setup: ' + x.status + '.' : 'Checked.'; }));
+      fa.appendChild(b);
+      const sb = document.createElement('button'); sb.className = 'btn small'; sb.textContent = 'Set-up plan';
+      sb.title = 'Everything a fresh phone needs, and what this one already has (plan only, runs nothing)';
+      sb.addEventListener('click', async () => {
+        const r = await regAction('farm/setup', { worker: w.name, dryRun: true });
+        if (!r.ok) { state.drawerMsg = { text: r.error || 'failed', bad: true }; return renderDrawer(); }
+        alert('Set up ' + w.name + ' (plan only, nothing runs): ' + r.todo + ' of ' + r.steps.length + ' steps to do\n\n' + r.steps.map(s => (s.done ? '✓ ' : '○ ') + s.what + (s.note ? '\n     ' + s.note : '')).join('\n'));
+      });
+      fa.appendChild(sb);
+      if (f && f.status !== 'in sync' && f.status !== 'error') {
+        const ap = document.createElement('button'); ap.className = 'btn small'; ap.textContent = 'Apply profile…';
+        ap.title = 'Fix only the drifted items: shows the commands first, runs nothing until you confirm';
+        ap.addEventListener('click', async () => {
+          state.drawerMsg = { text: 'Working out the fixes…' }; renderDrawer();
+          const plan = await regAction('farm/apply', { worker: w.name, dryRun: true });
+          if (!plan.ok) { state.drawerMsg = { text: plan.error || 'failed', bad: true }; return renderDrawer(); }
+          const short = (c) => c.replace(/echo [A-Za-z0-9+\/=]{200,} \|/, m => 'echo <' + (m.length - 7) + ' chars of base64> |');
+          const lines = plan.steps.map(s => '• ' + s.what + ' [' + s.via + ']\n    ' + short(s.cmd).slice(0, 300));
+          const man = plan.manual.map(m => '• ' + m.what);
+          if (!plan.steps.length) { state.drawerMsg = { text: 'Nothing to fix automatically.' + (man.length ? ' By hand: ' + plan.manual.map(m => m.what).join(' · ') : ''), bad: !!man.length }; return renderDrawer(); }
+          state.drawerMsg = null; renderDrawer();
+          if (!confirm('Apply profile ' + plan.stamp + ' to ' + w.name + '? These run on the phone:\n\n' + lines.join('\n') + (man.length ? '\n\nNot done automatically:\n' + man.join('\n') : ''))) return;
+          state.drawerMsg = { text: 'Applying…' }; renderDrawer();
+          const r = await regAction('farm/apply', { worker: w.name, dryRun: false });
+          const failed = (r.steps || []).filter(s => s.ok === false);
+          state.drawerMsg = r.ok ? { text: 'Applied. Setup now: ' + (r.after ? r.after.status : '?') + '.' } : { text: r.error || ('Failed: ' + failed.map(s => s.what + ' (' + ((s.result && (s.result.err || s.result.out)) || 'error') + ')').join('; ')), bad: true };
+          await loadStats(true); renderDrawer();
+        });
+        fa.appendChild(ap);
+      }
+      d.appendChild(fa);
+    }
+    drawerTools(d, w);
+  }
+  // status LED and find me (Termux phones on the farm setup)
+  if (w.farm && (w.farm.hw || w.farm.led || w.findUntil)) {
+    const f = w.farm, hl = document.createElement('h3'); hl.textContent = 'Status LED & Find me'; d.appendChild(hl);
+    const HW = { 'led-sec': 'LED (Samsung)', 'led-rgb': 'RGB LED', 'torch-cam': 'torch', vib: 'vibrator', 'vib-cmd': 'vibrator', 'termux-api': 'speaker (Termux:API)' };
+    const hw = Array.from(new Set((f.hw || []).map(x => HW[x] || (/torch|flash/i.test(x) ? 'torch' : x))));
+    const LEDS = { ok: ['--good', 'steady: mining as expected'], slow: ['--warning', 'slow blink: a bit slow'], bad: ['--serious', 'orange: under-performing or not mining'], find: ['--accent', 'find me'], off: ['--muted', 'off'] };
+    const L = f.led && LEDS[f.led.state];
+    const it = (f.items || []).find(i => i.key === 'statusLed');
+    d.appendChild(factList([
+      ['Hardware', hw.length ? hw.join(', ') : 'not read yet'],
+      ['LED now', L ? dot(L[0], L[1] + (f.led.khs ? ' · ' + (f.led.khs / 1000).toFixed(2) + ' MH/s' : ''), 'status') : null],
+      ['LED setup', it ? it.have : null],
+      ['Find me', w.findUntil ? 'on until ' + new Date(w.findUntil).toLocaleTimeString() : 'off']
+    ]));
+    const fa = document.createElement('div'); fa.className = 'dr-actions';
+    const fb = document.createElement('button'); fb.className = 'btn small'; fb.textContent = w.findUntil ? 'Stop find me' : 'Find me';
+    fb.title = 'LED in the find colour, with torch, vibration and sound as set in the farm profile';
+    fb.addEventListener('click', () => run(w.findUntil ? 'Stopping find me' : 'Starting find me', 'farm/find', { workers: [w.name], on: !w.findUntil }, r => { const x = r.results && r.results[0]; return x && x.ok ? (x.until ? 'Find me on until ' + new Date(x.until).toLocaleTimeString() + '.' : 'Find me off.') + (x.error ? ' ' + x.error : '') : (x && x.error) || 'failed'; }));
+    fa.appendChild(fb); d.appendChild(fa);
   }
   const h5 = document.createElement('h3'); h5.textContent = 'Mining'; d.appendChild(h5);
   if (w.minersTwice) { const x = document.createElement('div'); x.className = 'dr-warn'; x.textContent = MINER_TWICE(w); d.appendChild(x); }
@@ -2003,9 +2267,9 @@ function fillOptions(sel, opts, keep) {
 }
 function renderMiner() {
   const mi = state.miner;
-  if (!mi || !mi.enabled) { $('mvCard').hidden = true; return; }
+  if (!mi || !mi.enabled) { $('mvCard').hidden = true; syncToolsEmpty(); return; }
   const first = $('mvCard').hidden;
-  $('mvCard').hidden = false;
+  $('mvCard').hidden = false; syncToolsEmpty();
   if (first && state.stats) renderTable();
   const repo = mi.repo.replace(/^https:\/\/github\.com\//, '').replace(/\.git$/, '');
   const portName = (mi.ports.find(p => p.port === Number($('mvPort').value || mi.port)) || { name: 'SSH' }).name;
@@ -2302,6 +2566,16 @@ $('findBtn').addEventListener('click', (e) => {
   if (open) renderFindPanel();
 });
 
+// demo: setup check results (most in sync, some drifted, one not set up)
+function demoFarm(d, now) {
+  const h = [...d.name].reduce((a, c) => a + c.charCodeAt(0), 0);
+  const status = h % 7 === 0 ? 'not set up' : h % 4 === 0 ? 'drifted' : 'in sync';
+  const items = [['termux', 'Termux installed', true, '0.119.0-beta.3'], ['bootScript', 'Boot script ~/.termux/boot/verusproxy-setup', status !== 'not set up', status !== 'not set up' ? 'present' : 'missing'],
+    ['cpuset', 'Foreground cpuset', status !== 'drifted', status === 'drifted' ? '0-2,4-7' : '0-7'], ['keys', 'ADB and SSH keys in sync', true, '2 ADB + 1 SSH keys'], ['ccminer', 'ccminer running once', true, 'running once']]
+    .map(([key, label, ok, have]) => ({ key, label, ok, have, want: null }));
+  return { ts: now - 600e3, stamp: 'd3065d0f', status, items, drift: items.filter(i => !i.ok).map(i => i.key), unknown: [], root: true,
+    hw: ['led-sec', 'torch-sec1', 'vib', 'termux-api'], led: { state: status === 'in sync' ? 'ok' : 'slow', khs: 4800, ts: now - 20e3 } };
+}
 function startDemo() {
   state.demo = true;
   $('demoBadge').hidden = false;
@@ -2329,7 +2603,7 @@ bindSeg('themeSeg', 'theme', () => {
 bindSeg('rangeSeg', 'range', loadHistory);
 bindSeg('metricSeg', 'metric', () => { loadHistory(); if (state.stats) { renderKpis(); renderTable(); } });
 for (const id of ['q', 'fStatus', 'fGroup', 'fMake', 'fOs', 'fRoot', 'fTemp']) $(id).addEventListener('input', () => { renderTable(); renderChart(); if (state.ssh && state.ssh.enabled) fillSshTargets(); });
-$('clearFilters').addEventListener('click', () => { $('q').value = ''; for (const id of ['fStatus', 'fGroup', 'fMake', 'fOs', 'fRoot', 'fTemp']) $(id).value = ''; renderTable(); renderChart(); });
+$('clearFilters').addEventListener('click', () => { $('q').value = ''; for (const id of ['fStatus', 'fGroup', 'fMake', 'fOs', 'fRoot', 'fTemp']) $(id).value = ''; state.fSetup = ''; renderSetupStrip(); renderTable(); renderChart(); });
 $('plotGroups').addEventListener('click', () => {
   state.plotted = groupNames().slice(0, 6).map(n => 'g:' + n); store.set('plotted', state.plotted);
   renderTable(); renderChart();
@@ -2391,7 +2665,7 @@ const Demo = (() => {
   }
   const demoReg = {
     adb: { enabled: true, reason: null, version: '1.0.41', port: 5555, inventoryEveryMin: 10 },
-    sshPorts: [{ port: 8022, name: 'Termux' }, { port: 2022, name: 'UserLAnd' }],
+    sshPorts: [{ port: 8022, name: 'Termux' }],
     usb: [{ serial: 'R58N70XYZ1', state: 'device', usb: true, model: 'SM-A525F', registered: null }, { serial: '9B2AY1Q8', state: 'unauthorized', usb: true, model: null, registered: null }],
     lastScan: null
   };
@@ -2409,7 +2683,7 @@ const Demo = (() => {
   }
   const demoMiner = {
     enabled: true, reason: null, repo: 'https://github.com/zzpajk/CCminer-ARM-optimized.git', branch: 'variants', path: '~/ccminer/ccminer-verus', port: 8022,
-    ports: [{ port: 8022, name: 'Termux' }, { port: 2022, name: 'UserLAnd' }],
+    ports: [{ port: 8022, name: 'Termux' }],
     latest: { branch: 'variants', commit: MV.latest, date: Date.now() - 2.5 * 3600e3, message: 'phone-cpuwatch: the user\'s local stratum moved to 192.168.1.12', checked: Date.now() },
     library: [{ sha256: MV.dl, size: 3391204, arch: 'aarch64', added: Date.now() - 9 * 86400e3, label: 'ccminer-arm64 (downloaded)', source: 'url', url: 'https://example.org/ccminer-arm64.tar.gz' }],
     jobs: []
@@ -2512,9 +2786,10 @@ const Demo = (() => {
         marketName: null, android: null, root: d.root || null, rootKind: d.root && d.root !== 'no' ? d.rootKind : null, termux: d.root ? '0.118.1' : null, userland: d.userland ? '3.1.8' : null,
         dataFreeMB: null, androidId: d.root ? d.aid : null, dupOf: null, notes: d.notes || '',
         conn: { adb: d.adb, adbMsg: d.adb === 'unauthorized' ? 'Phone has not allowed this proxy: accept "Allow USB debugging" on the phone, or use "Install ADB key".' : null, adbPort: !!d.adb && d.adb !== 'closed',
-          ports: d.status === 'offline' ? { 8022: false, 2022: false } : { 8022: !/^sbc/.test(d.name), 2022: !!d.userland }, ts: now - 20e3 },
+          ports: d.status === 'offline' ? { 8022: false } : { 8022: !/^sbc/.test(d.name) }, ts: now - 20e3 },
         invTs: d.root ? now - d.invAgo : null, invError: null, inv: invFor(d, now),
-        minerBin: minerFor(d, now)
+        minerBin: minerFor(d, now),
+        farm: d.adb === 'device' && d.root === 'yes' ? demoFarm(d, now) : null
       };
     });
     workers.forEach(w => { if (w.inv) w.dataFreeMB = w.inv.dataFreeMB; });
@@ -2581,8 +2856,8 @@ const Demo = (() => {
   // remote commands demo: fake results so the panel can be tried without devices
   const sshDemo = {
     enabled: true, sshEnabled: true, user: 'eek', port: 8022, timeoutSec: 60, allowCustom: true, proxyUser: 'pi',
-    ports: [{ port: 8022, name: 'Termux', user: 'eek', authMode: 'password' }, { port: 2022, name: 'UserLAnd', user: 'root', authMode: 'password' }], authMode: 'password', hostKeyCheck: 'off',
-    channels: [{ id: 'ssh:8022', kind: 'ssh', port: 8022, name: 'Termux SSH (8022)', reason: null }, { id: 'ssh:2022', kind: 'ssh', port: 2022, name: 'UserLAnd SSH (2022)', reason: null },
+    ports: [{ port: 8022, name: 'Termux', user: 'eek', authMode: 'password' }], authMode: 'password', hostKeyCheck: 'off',
+    channels: [{ id: 'ssh:8022', kind: 'ssh', port: 8022, name: 'Termux SSH (8022)', reason: null }, 
       { id: 'adb', kind: 'adb', name: 'ADB shell', reason: null }, { id: 'adbroot', kind: 'adb', name: 'ADB root shell', reason: null }],
     publicKey: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDemoKeyOnlyForTheDemoPageNotARealKey0000 pi@verusproxy',
     presets: [{ name: 'Uptime', command: 'uptime' }, { name: 'ccminer running?', command: "pgrep -af ccminer || echo 'ccminer is NOT running'" },
@@ -2600,7 +2875,7 @@ const Demo = (() => {
   function sshSummary(r) {
     const c = { ok: 0, failed: 0, running: 0 };
     r.targets.forEach(t => { if (t.state === 'ok') c.ok++; else if (t.state === 'running' || t.state === 'queued') c.running++; else c.failed++; });
-    const via = r.channel === 'adb' ? 'ADB' : r.channel === 'adbroot' ? 'ADB root' : (r.port === 2022 ? 'UserLAnd 2022' : 'Termux 8022');
+    const via = r.channel === 'adb' ? 'ADB' : r.channel === 'adbroot' ? 'ADB root' : 'Termux ' + (r.port || 8022);
     return { id: r.id, t: r.t, by: 'admin', command: r.command, preset: r.preset, channel: r.channel || 'ssh', port: r.port || 8022, via, count: r.targets.length, ...c, done: c.running === 0 };
   }
   function sshInfo() { sshDemo.runs = sshRuns.map(sshSummary); return sshDemo; }
@@ -2684,8 +2959,14 @@ const Demo = (() => {
 
 // ---------- boot ----------
 renderColMenu();
+(() => { let t = null; try { t = localStorage.getItem('vp.tab'); } catch (e) {} const m = /[?&]tab=(\w+)/.exec(location.search); showTab(m ? m[1] : t); })();
+{ const m = /[?&]theme=(light|dark)/.exec(location.search); if (m) document.documentElement.setAttribute('data-theme', m[1]); }
+// ?still: no animations (for screenshots)
+if (/[?&]still\b/.test(location.search)) { const st = document.createElement('style'); st.textContent = '*,*::before,*::after{transition:none!important;animation:none!important}'; document.head.appendChild(st); }
 if (/[?&]demo\b/.test(location.search) || location.protocol === 'file:') startDemo();
 else { loadStats().then(() => { if (!state.demo) loadHistory(); }); }
+// ?open=<device>: open that device's side panel once the data is in (handy for links and screenshots)
+{ const m = /[?&]open=([^&]+)/.exec(location.search); if (m) { const name = decodeURIComponent(m[1]); const tryOpen = () => { if (state.stats && state.stats.workers.some(w => w.name === name)) { clearInterval(t); openDrawer(name); return true; } return false; }; const t = setInterval(tryOpen, 300); tryOpen(); setTimeout(() => clearInterval(t), 15000); } }
 setInterval(() => { if (!state.demo) loadStats(); }, 10000);
 setInterval(() => { if (!state.demo) loadHistory(); }, 60000);
 })();

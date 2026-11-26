@@ -230,6 +230,56 @@ The proxy can also keep a registry of your phones: what each one is, whether it'
 
 Device facts are stored with the rest of the stats in `data/stats.json`. ADB gives full control of a phone, so like remote commands it only works with a dashboard login, and actions only from the dashboard page itself; the proxy only connects to devices it already knows or found in a scan of your LAN, never to an address typed into the page.
 
+# Many phones (hundreds)
+
+- **History** is kept in `data/history/` (one small line per minute appended to a file per day; 24 h of minutes and 30 days of 15-minute points), not in `stats.json`. At 400 phones: ~28 MB in memory and ~33 MB on disk, one ~8 KB append a minute, instead of a 52 MB `stats.json` rewritten every 5 minutes. The first start moves the old history out of `stats.json` (a copy is kept as `stats.json.before-history`).
+- **ADB:** one `adb devices` per minute tells which phones are still connected; only the others get `adb connect`. CPU temperature is read every `adb.tempEveryMin` (3) minutes per phone. Raise `adb.parallel` (6) to 16-24 for hundreds of phones. `adb.servers` (1) spreads the phones over several adb servers on ports `adb.serverPort` (5037) and up; each phone always uses the same one.
+
+# Farm setup profile
+
+**Keys (phones run headless and cannot approve a key on the screen).** Every phone on the farm accepts the ADB and SSH keys in the box's list, kept in sync by the setup check and Apply:
+- `farm.defaults.adbKeys` / `farm.defaults.sshKeys` in `config.local.json` (a list of lines, or one string with a key per line; group and device entries add to them), and/or the files `data/keys/adb_keys.txt` and `data/keys/authorized_keys.txt` (one key per line, `#` comments).
+- The box's own keys (`~/.android/adbkey.pub`, `~/.ssh/id_ed25519.pub`) are always included.
+- On the phone: `/data/misc/adb/adb_keys` (only keys the box added are replaced; keys accepted on the phone stay) and a `# BEGIN/END verusproxy keys` block in Termux's `~/.ssh/authorized_keys`. adbd picks up new keys without a restart.
+- A laptop's ADB key: Windows `%USERPROFILE%\.android\adbkey.pub`, macOS/Linux `~/.android/adbkey.pub` (made the first time `adb` runs there). Its SSH key: `~/.ssh/id_ed25519.pub` (`ssh-keygen -t ed25519` if there is none).
+- After adding a key: *Apply profile* on the phones (or wait for the hourly check to mark them drifted and Apply).
+
+One profile says how every phone should be set up; the proxy checks each phone against it every hour over ADB and shows the result in the **Setup** column (In sync / Drifted / Not set up) and under *Farm setup* in the device details. The check only reads (packages, `~/.termux/boot`, `dumpsys`, properties, Magisk's root list); it changes nothing on the phones. Needs `adb.enabled` and `dashboard.auth`; it runs as root when the ADB shell has root, otherwise some items show "?".
+
+Settings: `farm.defaults`, then `farm.groups["<dashboard group>"]`, then `farm.devices["<device name>"]`, later ones win key by key. Each merged profile has a short stamp (printed at startup and shown per device); the managed boot script carries it as `# verusproxy-profile: <stamp>`.
+
+```json
+"farm": {
+    "groups": { "slow S8s": { "cpuset": "0-3" } },
+    "devices": { "s20tx": { "batterySpoof": false, "minerBuild": "a1b2c3d" } }
+}
+```
+
+| key | checked as |
+|---|---|
+| `termuxVersion` | Termux version equals this (empty = any version) |
+| `termuxApk`, `bootApk` | where setup installs Termux / Termux:Boot from (not checked) |
+| `bootScript` | `~/.termux/boot/<name>` exists and carries the profile stamp; missing = "Not set up" |
+| `batteryOptimisationOff` | `com.termux` is on the `deviceidle` whitelist |
+| `magiskAutoGrant` | Magisk allows root forever to Termux and to Shell (ADB) |
+| `cpuset` | `/dev/cpuset/foreground/cpus` equals this |
+| `batterySpoof` | `dumpsys battery` is spoofed (updates stopped) or real |
+| `adbWifiPort` | `service.adb.tcp.port` equals this |
+| `minerBuild` | commit, checksum prefix or code path of the miner (from *Miner updates*); empty = not checked |
+| `minerEnv` | where ccminer runs: `termux`, `userland` or `none` (the boot script only starts a Termux miner) |
+| `minerArgs` | ccminer arguments the boot script starts it with (not checked) |
+| `agent` | boot script starts `~/verus-agent.sh` when it is there (not checked) |
+| `retireBootScripts` | old boot scripts the managed one replaces; moved to `~/.verusproxy/retired-boot`, never deleted |
+| (always) | ccminer runs exactly once |
+
+`farm.proxyUrl` (default: this machine's LAN address and dashboard port) is what the boot script gives the agent.
+
+**The managed boot script** `~/.termux/boot/verusproxy-setup` is generated from the profile: wake lock, one instance only (`~/.verusproxy/boot.lock`), Termux services and sshd, then as root: ADB on, ADB over WiFi on `adbWifiPort` (restarts adbd), battery spoof, cpuset. With `minerEnv: "termux"` it keeps ccminer running in screen `ccminer` (never a second one, also not next to a UserLAnd miner), restarting it after 10 s / 30 s / 120 s when it keeps dying; it re-applies the cpuset when Android resets it and starts the agent. With `minerEnv: "userland"` it runs `~/kluster/update-UserLAnd.sh` once at boot, as `start-kluster.sh` did. Log: `~/.verusproxy/boot.log`. It replaces `start-kluster.sh` (ADB, battery spoof, UserLAnd start) and `start-sshd`; other boot scripts (e.g. `verus-runner.sh`) and the kluster cron jobs are left alone.
+
+**Apply profile** (device details, or `POST /api/farm/apply {"worker": "...", "dryRun": true|false}`) re-checks the phone and fixes only the drifted items: the boot script and file moves over SSH as the Termux user, root items over the ADB root shell (or Termux's `su` over SSH when ADB has no root), the ADB port last. Installing apps, a wrong miner environment, a miner running twice and miner builds are listed for you instead. `dryRun` (the default) only lists the commands; the dashboard shows them and asks before running. The boot script is not written while the miner runs somewhere else than `minerEnv` says. Command line, runs nothing: `node deploy/farm-check.js --plan [--set minerEnv=userland] <device>`.
+
+Dry run without the proxy (read-only, saves nothing): `node deploy/farm-check.js s8tx 192.168.1.21` (`--json` for the raw result). Check one device now from the dashboard: *Check setup* in its details, or `POST /api/farm/check {"workers": [...]}`.
+
 # Miner updates
 
 The **Miner versions** card (below Remote commands) shows which ccminer every phone has and puts a new one on many phones at once. It works over SSH (Termux, port 8022; or another port from `ssh.ports`, e.g. UserLAnd 2022), so it needs the same setup as Remote commands: `ssh.enabled` and `dashboard.auth`.

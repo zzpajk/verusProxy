@@ -43,7 +43,7 @@ if (cluster.isMaster) {
 
     dashboard.start(config, stats, pools);
     let shutdown = function() {
-        stats.save();
+        stats.save(true);     // synchronous: the process exits right after
         pools.save();
         process.exit(0);
     };
