@@ -96,7 +96,8 @@
             "findMeMin": 10,
             "findTorch": true,
             "findVibrate": true,
-            "findSound": false
+            "findSound": false,
+            "termuxSource": "fdroid"
         },
         "proxyUrl": "",
         "groups": {},

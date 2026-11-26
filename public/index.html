@@ -1916,6 +1916,14 @@ function renderDrawer() {
       const b = document.createElement('button'); b.className = 'btn small'; b.textContent = 'Check setup'; b.title = 'Compare this phone with its farm profile now (read-only)';
       b.addEventListener('click', () => run('Checking setup', 'farm/check', { workers: [w.name] }, r => { const x = r.results && r.results[0] && r.results[0].farm; return x ? 'Setup: ' + x.status + '.' : 'Checked.'; }));
       fa.appendChild(b);
+      const sb = document.createElement('button'); sb.className = 'btn small'; sb.textContent = 'Set-up plan';
+      sb.title = 'Everything a fresh phone needs, and what this one already has (plan only, runs nothing)';
+      sb.addEventListener('click', async () => {
+        const r = await regAction('farm/setup', { worker: w.name, dryRun: true });
+        if (!r.ok) { state.drawerMsg = { text: r.error || 'failed', bad: true }; return renderDrawer(); }
+        alert('Set up ' + w.name + ' (plan only, nothing runs): ' + r.todo + ' of ' + r.steps.length + ' steps to do\n\n' + r.steps.map(s => (s.done ? '✓ ' : '○ ') + s.what + (s.note ? '\n     ' + s.note : '')).join('\n'));
+      });
+      fa.appendChild(sb);
       if (f && f.status !== 'in sync' && f.status !== 'error') {
         const ap = document.createElement('button'); ap.className = 'btn small'; ap.textContent = 'Apply profile…';
         ap.title = 'Fix only the drifted items: shows the commands first, runs nothing until you confirm';

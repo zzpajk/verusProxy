@@ -15,14 +15,14 @@ const { Groups } = require('../lib/groups.js');
 const { checkDevice, planFixes } = require('../lib/farm.js');
 
 let args = process.argv.slice(2);
-let json = args.includes('--json'), plan = args.includes('--plan');
+let json = args.includes('--json'), plan = args.includes('--plan'), setup = args.includes('--setup');
 let sets = {};
 for (let i = args.indexOf('--set'); i >= 0; i = args.indexOf('--set')) {
     let [k, ...v] = String(args[i + 1] || '').split('='); v = v.join('=');
     sets[k] = v === 'true' ? true : v === 'false' ? false : /^\d+$/.test(v) ? Number(v) : v;
     args.splice(i, 2);
 }
-args = args.filter(a => a !== '--json' && a !== '--plan');
+args = args.filter(a => a !== '--json' && a !== '--plan' && a !== '--setup');
 if (!args.length) { console.log('usage: node deploy/farm-check.js [--json] <device name or ip> ...'); process.exit(1); }
 
 const config = configLib.load();
@@ -52,6 +52,12 @@ const adb = new Adb(config);
         for (let i of r.items) {
             let mark = i.ok === true ? 'ok   ' : i.ok === false ? 'DRIFT' : '  ?  ';
             console.log(`  ${mark} ${i.label.padEnd(42)} ${i.have || '?'}${i.ok === false && i.want ? '   (want ' + i.want + ')' : ''}`);
+        }
+        if (setup) {
+            let lib = []; try { lib = JSON.parse(fs.readFileSync(path.join(dataDir, 'miners', 'index.json'), 'utf8')); } catch (e) {}
+            let sp = require('../lib/farm_setup.js').setupPlan({ w: Object.assign({}, w, { farm: r }), profile: prof.profile, config, library: lib, apkDir: path.join(dataDir, 'apks'), poolHost: '192.168.1.12' });
+            console.log(`\n  Set up phone (plan only): ${sp.todo} of ${sp.steps.length} step(s) to do`);
+            for (let s of sp.steps) console.log(`   ${s.done ? 'done ' : 'TODO '} [${s.via}] ${s.what}${s.note ? '\n          ' + s.note : ''}${!s.done && s.cmd ? '\n          $ ' + s.cmd : ''}`);
         }
         if (plan && !r.error) {
             let f = config.farm || {};
