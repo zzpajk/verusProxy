@@ -237,6 +237,13 @@ Device facts are stored with the rest of the stats in `data/stats.json`. ADB giv
 
 # Farm setup profile
 
+**Keys (phones run headless and cannot approve a key on the screen).** Every phone on the farm accepts the ADB and SSH keys in the box's list, kept in sync by the setup check and Apply:
+- `farm.defaults.adbKeys` / `farm.defaults.sshKeys` in `config.local.json` (a list of lines, or one string with a key per line; group and device entries add to them), and/or the files `data/keys/adb_keys.txt` and `data/keys/authorized_keys.txt` (one key per line, `#` comments).
+- The box's own keys (`~/.android/adbkey.pub`, `~/.ssh/id_ed25519.pub`) are always included.
+- On the phone: `/data/misc/adb/adb_keys` (only keys the box added are replaced; keys accepted on the phone stay) and a `# BEGIN/END verusproxy keys` block in Termux's `~/.ssh/authorized_keys`. adbd picks up new keys without a restart.
+- A laptop's ADB key: Windows `%USERPROFILE%\.android\adbkey.pub`, macOS/Linux `~/.android/adbkey.pub` (made the first time `adb` runs there). Its SSH key: `~/.ssh/id_ed25519.pub` (`ssh-keygen -t ed25519` if there is none).
+- After adding a key: *Apply profile* on the phones (or wait for the hourly check to mark them drifted and Apply).
+
 One profile says how every phone should be set up; the proxy checks each phone against it every hour over ADB and shows the result in the **Setup** column (In sync / Drifted / Not set up) and under *Farm setup* in the device details. The check only reads (packages, `~/.termux/boot`, `dumpsys`, properties, Magisk's root list); it changes nothing on the phones. Needs `adb.enabled` and `dashboard.auth`; it runs as root when the ADB shell has root, otherwise some items show "?".
 
 Settings: `farm.defaults`, then `farm.groups["<dashboard group>"]`, then `farm.devices["<device name>"]`, later ones win key by key. Each merged profile has a short stamp (printed at startup and shown per device); the managed boot script carries it as `# verusproxy-profile: <stamp>`.
