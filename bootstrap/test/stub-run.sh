@@ -9,6 +9,7 @@ mkdir -p "$W/bin" "$W/state" "$W/mod/apks" "$W/mod/termux-boot" "$W/termux/files
 cp "$HERE/../module/farm-bootstrap.sh" "$HERE/../module/module.prop" "$W/mod/"
 cp "$HERE/../module/termux-boot/farm-bootstrap" "$W/mod/termux-boot/"
 echo fake > "$W/mod/apks/1-com.termux.apk"; echo fake > "$W/mod/apks/2-com.termux.boot.apk"
+echo "ssh-ed25519 AAAAFAKE box" > "$W/mod/ssh_keys"
 cat > "$W/mod/farm.conf" <<'C'
 WIFI_SSID='Farm Net'
 WIFI_PASS='it'\''s secret'
@@ -37,6 +38,7 @@ check "settings put global device_provisioned 1" "setup wizard off"
 check "VALUES(2000,2,0,1,0)" "root for ADB shell"
 check "am start -n com.termux.boot/.BootActivity" "Termux:Boot opened"
 [ -f "$W/termux/files/home/.termux/boot/farm-bootstrap" ] && echo "ok   boot script written" || { echo "FAIL boot script"; fail=1; }
+grep -q "AAAAFAKE" "$W/termux/files/home/.ssh/authorized_keys" 2>/dev/null && echo "ok   SSH key added" || { echo "FAIL SSH key"; fail=1; }
 [ -f "$W/state/done" ] && echo "ok   done" || { echo "FAIL not done"; cat "$W/state/log.txt"; fail=1; }
 
 echo "== second run"; : > "$CALLS"; run >/dev/null

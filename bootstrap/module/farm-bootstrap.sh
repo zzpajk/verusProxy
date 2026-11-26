@@ -6,7 +6,7 @@
 # Every boot: ADB over WiFi on, WiFi joined, screen kept on.
 # Until done (each step is retried on the next boot until it worked): setup wizard off, lock screen
 # off, developer options, Termux apps installed and opened once, Magisk root for ADB shell and
-# Termux, battery optimisation off, a small Termux:Boot script. The rest (packages, SSH, miner,
+# Termux, battery optimisation off, a small Termux:Boot script, the farm's SSH keys. The rest (packages, SSH, miner,
 # farm profile) is the dashboard's "Set up phone" once its scan finds the phone on ADB_PORT.
 
 MODDIR=${0%/*}
@@ -184,6 +184,20 @@ boot_script() {
   mark bootscript
 }
 
+ssh_keys() {   # the zip's ssh_keys into Termux's authorized_keys (added, never removed)
+  [ -s "$MODDIR/ssh_keys" ] && [ -d "$T/home" ] || return 0
+  done_step sshkeys && return 0
+  uid=$(stat -c %u "$T") || return 1
+  [ "$uid" -ge 10000 ] || return 1
+  ctx=$(ls -Zd "$T/home" | awk '{print $1}')
+  A=$T/home/.ssh/authorized_keys
+  mkdir -p "$T/home/.ssh"; touch "$A"
+  while IFS= read -r k; do [ -n "$k" ] && ! grep -qxF "$k" "$A" && echo "$k" >> "$A"; done < "$MODDIR/ssh_keys"
+  chown -R "$uid:$uid" "$T/home/.ssh"; chmod 700 "$T/home/.ssh"; chmod 600 "$A"
+  [ -n "$ctx" ] && chcon -R "$ctx" "$T/home/.ssh" 2>/dev/null
+  mark sshkeys
+}
+
 status() {
   {
     echo "version=$(grep '^version=' "$MODDIR/module.prop" | cut -d= -f2)"
@@ -214,6 +228,7 @@ run() {
     root_grants      # Termux may have been installed just now
     battery
     boot_script
+    ssh_keys
     all=1
     on "$INSTALL_APPS" && for f in "$MODDIR"/apks/*.apk; do
       [ -f "$f" ] || continue; p=$(basename "$f" .apk); installed "${p#*-}" || all=0
@@ -223,6 +238,7 @@ run() {
     on "$ROOT_SHELL" && { done_step rootshell || all=0; }
     on "$ROOT_TERMUX" && installed com.termux && { done_step roottermux || all=0; }
     installed com.termux && { done_step bootscript || all=0; }
+    [ -s "$MODDIR/ssh_keys" ] && installed com.termux && { done_step sshkeys || all=0; }
     if [ $all = 1 ]; then touch "$STATE/done"; log "done: ready for the dashboard's Set up phone"; else log "not done yet, the rest runs next boot"; fi
   fi
   status

@@ -11,6 +11,7 @@ forever. The dashboard's scan (Find phones) then finds it, and **Set up phone** 
 | `module/system.prop` | `persist.sys.usb.config=mtp,adb`, `service.adb.tcp.port=5555`, `ro.setupwizard.mode=DISABLED` (LineageOS), at every boot, in memory |
 | `module/post-fs-data.sh` | adds the zip's `adb_keys` to `/data/misc/adb/adb_keys` (keeps keys already there) |
 | `module/farm-bootstrap.sh` | every boot: ADB on 5555, WiFi (`cmd wifi connect-network`, Android 11+), screen on. Until done: setup wizard, lock screen, developer options, install APKs, Magisk root for ADB shell + Termux, battery optimisation off, open Termux and Termux:Boot once, small Termux:Boot script. A step that fails is tried again at the next boot. |
+| keys | ADB and SSH keys come from `farm.defaults.adbKeys` / `sshKeys` in `config.local.json`, the same list the phones keep syncing from the box, plus `bootstrap/local/adb_keys` and the build user's `~/.android/adbkey.pub` |
 | `module/termux-boot/farm-bootstrap` | wake lock + sshd until Apply profile writes `verusproxy-setup`, then deletes itself |
 | `build.sh` | builds the zip with this farm's settings, keys and APKs |
 | `test/stub-run.sh` | runs the script on a computer with Android's commands stubbed |

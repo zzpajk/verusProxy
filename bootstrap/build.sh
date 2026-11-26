@@ -5,6 +5,7 @@
 #
 # Defaults (all gitignored, the zip holds the WiFi password: keep it off GitHub):
 #   --conf  bootstrap/local/farm.conf          copy of bootstrap/module/farm.conf.example, filled in
+#   keys    farm.defaults.adbKeys / sshKeys from config.local.json (the list phones sync from)
 #   --key   bootstrap/local/adb_keys            extra keys, one adbkey.pub line each (e.g. the laptop's)
 #           plus ~/.android/adbkey.pub of the user running this (on the box: run as verusproxy,
 #           the user the dashboard's adb runs as, or pass ~verusproxy/.android/adbkey.pub)
@@ -55,8 +56,25 @@ else
   echo "warning: no $CONF, the phone will not join WiFi (copy bootstrap/module/farm.conf.example)" >&2
 fi
 
+# the farm's key list: farm.defaults.adbKeys / sshKeys in config.local.json, the same list the
+# phones sync from the box later (a string or an array of adbkey.pub / authorized_keys lines)
+farmkeys() {
+  [ -f "$ROOT/config.local.json" ] || return 0
+  python3 - "$ROOT/config.local.json" "$1" <<'PY'
+import json, sys
+try: d = ((json.load(open(sys.argv[1])).get('farm') or {}).get('defaults') or {}).get(sys.argv[2])
+except Exception as e: sys.exit('config.local.json: %s' % e)
+for k in ([d] if isinstance(d, str) else d or []):
+    for line in str(k).splitlines():
+        if line.strip(): print(line.strip())
+PY
+}
+
 # ADB keys, without duplicates
-: > "$STAGE/adb_keys"
+farmkeys adbKeys > "$STAGE/adb_keys"
+[ -s "$STAGE/adb_keys" ] && echo "adb keys from config.local.json farm.defaults.adbKeys: $(wc -l < "$STAGE/adb_keys")"
+farmkeys sshKeys > "$STAGE/ssh_keys"
+if [ -s "$STAGE/ssh_keys" ]; then echo "ssh keys from farm.defaults.sshKeys: $(wc -l < "$STAGE/ssh_keys")"; else rm -f "$STAGE/ssh_keys"; fi
 for k in "${KEYS[@]}"; do
   [ -f "$k" ] || { echo "no key file $k" >&2; exit 1; }
   grep -v '^[[:space:]]*\(#\|$\)' "$k" >> "$STAGE/adb_keys" || true
