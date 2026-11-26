@@ -1087,7 +1087,17 @@ function renderGroupPanel() {
     ren.addEventListener('click', () => { const to = (prompt('Rename group "' + name + '" to:', name) || '').trim(); if (to && to !== name) groupAction('rename', { from: name, to }); });
     const del = document.createElement('button'); del.className = 'linkbtn'; del.textContent = 'Delete';
     del.addEventListener('click', () => { if (confirm('Delete group "' + name + '"? Its ' + g.devices + ' device(s) stay, just without a group.')) groupAction('delete', { name }); });
-    act.append(show, ren, del);
+    const members = state.stats.workers.filter(w => w.group === name);
+    const finding = members.some(w => w.findUntil);
+    const fnd = document.createElement('button'); fnd.className = 'linkbtn'; fnd.textContent = finding ? 'Stop find' : 'Find';
+    fnd.title = 'Find me on every phone in this group (LED, torch, vibration, sound as set in the farm profile)';
+    fnd.addEventListener('click', async () => {
+      const r = await regAction('farm/find', { workers: members.map(w => w.name), on: !finding });
+      const bad = (r.results || []).filter(x => !x.ok);
+      if (!r.ok || bad.length) alert((r.error || '') + (bad.length ? 'Not reached: ' + bad.map(x => x.name + ' (' + x.error + ')').join(', ') : ''));
+      await loadStats(true); renderGroupPanel();
+    });
+    act.append(show, fnd, ren, del);
     const meta = document.createElement('span'); meta.className = 'gmeta';
     meta.textContent = g.online + ' / ' + g.devices + ' online · ' + fmtH(g.hash) + (state.metric === 'rep' ? ' reported' : ' pool-side');
     row.append(cb, nm, act, meta);
@@ -1929,6 +1939,26 @@ function renderDrawer() {
       }
       d.appendChild(fa);
     }
+  }
+  // status LED and find me (Termux phones on the farm setup)
+  if (w.farm && (w.farm.hw || w.farm.led || w.findUntil)) {
+    const f = w.farm, hl = document.createElement('h3'); hl.textContent = 'Status LED & Find me'; d.appendChild(hl);
+    const HW = { 'led-sec': 'LED (Samsung)', 'led-rgb': 'RGB LED', 'torch-cam': 'torch', vib: 'vibrator', 'vib-cmd': 'vibrator', 'termux-api': 'speaker (Termux:API)' };
+    const hw = Array.from(new Set((f.hw || []).map(x => HW[x] || (/torch|flash/i.test(x) ? 'torch' : x))));
+    const LEDS = { ok: ['--good', 'steady: mining as expected'], slow: ['--warning', 'slow blink: a bit slow'], bad: ['--serious', 'orange: under-performing or not mining'], find: ['--accent', 'find me'], off: ['--muted', 'off'] };
+    const L = f.led && LEDS[f.led.state];
+    const it = (f.items || []).find(i => i.key === 'statusLed');
+    d.appendChild(factList([
+      ['Hardware', hw.length ? hw.join(', ') : 'not read yet'],
+      ['LED now', L ? dot(L[0], L[1] + (f.led.khs ? ' · ' + (f.led.khs / 1000).toFixed(2) + ' MH/s' : ''), 'status') : null],
+      ['LED setup', it ? it.have : null],
+      ['Find me', w.findUntil ? 'on until ' + new Date(w.findUntil).toLocaleTimeString() : 'off']
+    ]));
+    const fa = document.createElement('div'); fa.className = 'dr-actions';
+    const fb = document.createElement('button'); fb.className = 'btn small'; fb.textContent = w.findUntil ? 'Stop find me' : 'Find me';
+    fb.title = 'LED in the find colour, with torch, vibration and sound as set in the farm profile';
+    fb.addEventListener('click', () => run(w.findUntil ? 'Stopping find me' : 'Starting find me', 'farm/find', { workers: [w.name], on: !w.findUntil }, r => { const x = r.results && r.results[0]; return x && x.ok ? (x.until ? 'Find me on until ' + new Date(x.until).toLocaleTimeString() + '.' : 'Find me off.') + (x.error ? ' ' + x.error : '') : (x && x.error) || 'failed'; }));
+    fa.appendChild(fb); d.appendChild(fa);
   }
   const h5 = document.createElement('h3'); h5.textContent = 'Mining'; d.appendChild(h5);
   if (w.minersTwice) { const x = document.createElement('div'); x.className = 'dr-warn'; x.textContent = MINER_TWICE(w); d.appendChild(x); }

@@ -1,11 +1,95 @@
 # body of ~/.termux/boot/verusproxy-setup; lib/farm_boot.js puts the settings above it
-VP="$HOME/.verusproxy"; LOG="$VP/boot.log"; LOCK="$VP/boot.lock"
+# fixed path: the status LED part runs as root, where $HOME is not Termux's
+TH=/data/data/com.termux/files/home
+VP="$TH/.verusproxy"; LOG="$VP/boot.log"; LOCK="$VP/boot.lock"
 mkdir -p "$VP"
 log() { echo "$(date '+%F %T') $*" >> "$LOG"; }
+
+# ---- status LED and "find me" (runs as root, started by the watchdog: sh <this script> led-run) ----
+# Settings come from ~/.verusproxy/led.conf, written by the proxy: LED, TARGET_KHS, OK_PCT, SLOW_PCT,
+# COLOR_OK/COLOR_BAD/COLOR_FIND (RRGGBB), FINDME_UNTIL (epoch), FIND_TORCH/FIND_VIBRATE/FIND_SOUND.
+# (LED writing as in the fork's tools/phone-led.sh: Samsung sec interface, else per-colour LEDs)
+led() { # RRGGBB on_ms off_ms  (off_ms 0 = steady)
+  if [ -e /sys/class/sec/led/led_blink ]; then
+    echo 0 > /sys/class/sec/led/led_pattern 2>/dev/null      # clears the charging/battery pattern
+    echo "0x$1 $2 $3" > /sys/class/sec/led/led_blink 2>/dev/null; return
+  fi
+  rgb=$1; on=$2; off=$3
+  r=$((0x${rgb%????})); g=$((0x$(echo "$rgb" | cut -c3-4))); b=$((0x${rgb#????}))
+  for names in "red green blue" "led_r led_g led_b" "R G B"; do
+    set -- $names
+    [ -e "/sys/class/leds/$1/brightness" ] || continue
+    for x in "$1:$r" "$2:$g" "$3:$b"; do
+      d=/sys/class/leds/${x%%:*}; v=${x#*:}
+      echo 0 > "$d/blink" 2>/dev/null
+      echo "$v" > "$d/brightness" 2>/dev/null
+      [ "$off" -gt 0 ] && [ "$v" -gt 0 ] && { echo "$on" > "$d/delay_on"; echo "$off" > "$d/delay_off"; echo 1 > "$d/blink"; } 2>/dev/null
+    done
+    return
+  done
+}
+torch() { # 1 = on, 0 = off
+  for t in /sys/class/leds/torch-sec1 /sys/class/leds/torch-light0 /sys/class/leds/flashlight; do
+    [ -e "$t/brightness" ] && { [ "$1" = 1 ] && cat "$t/max_brightness" > "$t/brightness" || echo 0 > "$t/brightness"; return; }
+  done
+  [ -e /sys/class/camera/flash/rear_torch_flash ] && echo "$1" > /sys/class/camera/flash/rear_torch_flash
+}
+buzz() {
+  if [ -e /sys/class/timed_output/vibrator/enable ]; then echo 600 > /sys/class/timed_output/vibrator/enable
+  else cmd vibrator vibrate 600 >/dev/null 2>&1; fi
+}
+beep() { # loud, through Termux:API as Termux's user: a ringtone and "here I am"
+  for st in 3 4 5; do media volume --stream $st --set 15 >/dev/null 2>&1 || cmd media_session volume --stream $st --set 15 >/dev/null 2>&1; done
+  f=$(ls /system/media/audio/ringtones/*.ogg /product/media/audio/ringtones/*.ogg /system/product/media/audio/alarms/*.ogg /product/media/audio/alarms/*.ogg 2>/dev/null | head -n 1)
+  TU=$(stat -c %u /data/data/com.termux); TP=/data/data/com.termux/files/usr/bin
+  [ -n "$f" ] && [ -x $TP/termux-media-player ] && su "$TU" -c "PATH=$TP:\$PATH timeout 8 termux-media-player play $f" >/dev/null 2>&1
+  [ -x $TP/termux-tts-speak ] && su "$TU" -c "PATH=$TP:\$PATH timeout 8 termux-tts-speak -s ALARM 'Here I am. Here I am.'" >/dev/null 2>&1 &
+}
+led_main() {
+  L="$VP/led.lock"
+  if ! mkdir "$L" 2>/dev/null; then old=$(cat "$L/pid" 2>/dev/null); [ -n "$old" ] && kill -0 "$old" 2>/dev/null && exit 0; rm -rf "$L"; mkdir "$L" || exit 1; fi
+  echo $$ > "$L/pid"; chmod 755 "$L"; chmod 644 "$L/pid"
+  trap '[ "$(cat "$L/pid" 2>/dev/null)" = "$$" ] && rm -rf "$L"' EXIT
+  trap 'exit 0' INT TERM
+  last=""; n=0
+  while :; do
+    LED=0; TARGET_KHS=0; OK_PCT=90; SLOW_PCT=70; COLOR_OK=0000FF; COLOR_BAD=FF3000; COLOR_FIND=FF00FF; FINDME_UNTIL=0; FIND_TORCH=0; FIND_VIBRATE=0; FIND_SOUND=0
+    [ -f "$VP/led.conf" ] && . "$VP/led.conf"
+    now=$(date +%s); khs=""
+    if [ "$FINDME_UNTIL" -gt "$now" ]; then state=find
+    elif [ "$LED" != 1 ]; then state=off
+    else
+      khs=$(echo summary | nc -w 3 127.0.0.1 4068 2>/dev/null | tr ';' '\n' | sed -n 's/^KHS=\([0-9]*\).*/\1/p')
+      if [ -z "$khs" ] || [ "$khs" = 0 ]; then state=bad
+      elif [ "$TARGET_KHS" -le 0 ]; then state=ok
+      else pct=$((khs * 100 / TARGET_KHS)); if [ $pct -ge "$OK_PCT" ]; then state=ok; elif [ $pct -ge "$SLOW_PCT" ]; then state=slow; else state=bad; fi; fi
+    fi
+    # re-written every round: Android's battery and notification light can take the LED over
+    case $state in
+      ok) led "$COLOR_OK" 1000 0 ;;
+      slow) led "$COLOR_OK" 1000 1500 ;;
+      bad) led "$COLOR_BAD" 1000 0 ;;
+      find) if [ "$COLOR_FIND" = CYCLE ]; then set -- FF0000 00FF00 0000FF FFFFFF FF00FF 00FFFF; shift $((n % 6)); led "$1" 300 300; else led "$COLOR_FIND" 300 300; fi ;;
+      off) [ "$last" != off ] && led 000000 0 0 ;;
+    esac
+    [ "$state" != "$last" ] && log "led: $state${khs:+ ($khs of $TARGET_KHS kH/s)}"
+    echo "$state ${khs:-0} $now" > "$VP/led.state"
+    last=$state
+    if [ $state = find ]; then
+      [ "$FIND_TORCH" = 1 ] && { torch 1; sleep 1; torch 0; }
+      [ "$FIND_VIBRATE" = 1 ] && buzz
+      [ "$FIND_SOUND" = 1 ] && [ $((n % 3)) = 0 ] && beep
+      n=$((n + 1)); sleep 4
+    else
+      n=0; sleep 30
+    fi
+  done
+}
 
 # Termux:Boot waits for its scripts: carry on detached
 # ("loop": only the watchdog, used when "Apply profile" replaces a running copy)
 MODE=${1:-}
+[ "$MODE" = led-run ] && { led_main; exit 0; }
 if [ "$MODE" != run ] && [ "$MODE" != loop-run ]; then
   [ "$MODE" = loop ] && next=loop-run || next=run
   if command -v setsid >/dev/null 2>&1; then setsid nohup sh "$0" $next >/dev/null 2>&1 < /dev/null &
@@ -84,9 +168,13 @@ keep_front() {
   [ -n "$out" ] && log "keep in front: $(echo $out)"
 }
 
+# the status LED loop runs as root; its own lock keeps it to one copy
+led_up() { [ "$STATUS_LED" = 1 ] || return 0; su -c "nohup sh $0 led-run >/dev/null 2>&1 < /dev/null &" >/dev/null 2>&1; }
+
 fails=0; started=0; missing=0; n=0
 while :; do
   [ $((n % 3)) = 0 ] && keep_front
+  [ $((n % 5)) = 0 ] && led_up
   n=$((n + 1))
   if [ "$MINER_ENV" = termux ]; then
     if miner_running; then
