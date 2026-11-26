@@ -59,8 +59,15 @@ led_main() {
     if [ "$FINDME_UNTIL" -gt "$now" ]; then state=find
     elif [ "$LED" != 1 ]; then state=off
     else
-      khs=$(echo summary | nc -w 3 127.0.0.1 4068 2>/dev/null | tr ';' '\n' | sed -n 's/^KHS=\([0-9]*\).*/\1/p')
-      if [ -z "$khs" ] || [ "$khs" = 0 ]; then state=bad
+      sm=$(echo summary | nc -w 3 127.0.0.1 4068 2>/dev/null | tr ';' '\n')
+      khs=$(echo "$sm" | sed -n 's/^KHS=\([0-9]*\).*/\1/p'); up=$(echo "$sm" | sed -n 's/^UPTIME=\([0-9]*\).*/\1/p')
+      # this ccminer reports 0 in its summary until the first share: add up the threads that report instead
+      if [ -n "$sm" ] && [ "${khs:-0}" = 0 ]; then
+        t=$(echo threads | nc -w 3 127.0.0.1 4068 2>/dev/null | tr '|;' '\n\n' | sed -n 's/^KHS=\([0-9]*\).*/\1/p' | awk '{s += $1} END {print s + 0}')
+        [ "${t:-0}" -gt 0 ] && khs=$t
+      fi
+      if [ -n "$sm" ] && [ "${khs:-0}" = 0 ] && [ "${up:-9999}" -lt 900 ]; then state=slow      # still starting
+      elif [ -z "$khs" ] || [ "$khs" = 0 ]; then state=bad
       elif [ "$TARGET_KHS" -le 0 ]; then state=ok
       else pct=$((khs * 100 / TARGET_KHS)); if [ $pct -ge "$OK_PCT" ]; then state=ok; elif [ $pct -ge "$SLOW_PCT" ]; then state=slow; else state=bad; fi; fi
     fi
