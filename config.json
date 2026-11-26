@@ -80,7 +80,10 @@
             "minerEnv": "termux",
             "minerArgs": "-c ~/ccminer/verus.conf -b --api-remote",
             "agent": true,
-            "retireBootScripts": ["start-kluster.sh", "start-sshd"]
+            "retireBootScripts": ["start-kluster.sh", "start-sshd"],
+            "cronWatchdog": true,
+            "klusterOff": true,
+            "userlandOff": true
         },
         "proxyUrl": "",
         "groups": {},

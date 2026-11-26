@@ -18,7 +18,8 @@ fi
 # one instance only (a stale lock from a crash or reboot is taken over)
 if ! mkdir "$LOCK" 2>/dev/null; then
   old=$(cat "$LOCK/pid" 2>/dev/null)
-  if [ -n "$old" ] && kill -0 "$old" 2>/dev/null; then log "already running (pid $old), not starting twice"; exit 0; fi
+  # (the crontab backup asks every 5 minutes: stay quiet then)
+  if [ -n "$old" ] && kill -0 "$old" 2>/dev/null; then [ "$MODE" = run ] && log "already running (pid $old), not starting twice"; exit 0; fi
   rm -rf "$LOCK"; mkdir "$LOCK" || { log "cannot take $LOCK"; exit 1; }
 fi
 echo $$ > "$LOCK/pid"
