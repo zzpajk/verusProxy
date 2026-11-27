@@ -1,0 +1,6 @@
+id=farm-bootstrap
+name=Farm bootstrap
+version=v0.1.0
+versionCode=1
+author=zzpajk
+description=Brings a freshly rooted phone up ready for the verusProxy dashboard: ADB over WiFi with the farm's keys, WiFi, no setup wizard, Termux + Termux:Boot installed and granted root.

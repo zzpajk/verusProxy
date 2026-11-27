@@ -1,0 +1,16 @@
+# Farm bootstrap settings. Copy to bootstrap/local/farm.conf (gitignored) and fill in.
+# Shell syntax: keep the single quotes; a quote inside a value is written '\''
+WIFI_SSID=''
+WIFI_PASS=''
+WIFI_SECURITY='wpa2'        # open | owe | wpa2 | wpa3
+
+ADB_PORT='5555'              # ADB over WiFi, what the dashboard scans for
+SKIP_SETUP_WIZARD='1'        # mark the phone as set up (no setup wizard)
+DISABLE_LOCKSCREEN='1'       # no swipe lock (only when the phone has no PIN)
+STAY_AWAKE='1'               # screen stays on while powered, longest screen timeout
+DEV_OPTIONS='1'              # developer options on
+INSTALL_APPS='1'             # install the APKs in the zip (Termux, Termux:Boot, Termux:API)
+ROOT_SHELL='1'               # Magisk: allow root for ADB shell forever (the dashboard needs it)
+ROOT_TERMUX='1'              # Magisk: allow root for Termux forever
+BATTERY_WHITELIST='1'        # battery optimisation off for the Termux apps
+PROXY_HOST='192.168.1.12'    # the dashboard box, only written to the status file for now
